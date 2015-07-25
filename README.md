@@ -1,5 +1,7 @@
 # OPC-UA Client SDK
 
+[![Join the chat at https://gitter.im/digitalpetri/ua-client-sdk](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/digitalpetri/ua-client-sdk?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Looking for an OPC-UA Server SDK? Check out the [digitalpetri OPC-UA Server SDK](https://github.com/digitalpetri/ua-server-sdk).
 
 This is currently under active development.
