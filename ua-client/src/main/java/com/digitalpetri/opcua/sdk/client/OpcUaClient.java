@@ -29,6 +29,7 @@ import com.digitalpetri.opcua.sdk.client.api.config.OpcUaClientConfig;
 import com.digitalpetri.opcua.sdk.client.api.nodes.AddressSpace;
 import com.digitalpetri.opcua.sdk.client.api.nodes.NodeCache;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext.SessionStateListener;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultAddressSpace;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultNodeCache;
@@ -106,8 +107,8 @@ import com.digitalpetri.opcua.stack.core.types.structured.WriteValue;
 import com.digitalpetri.opcua.stack.core.util.ExecutionQueue;
 import com.digitalpetri.opcua.stack.core.util.LongSequence;
 
-import static com.digitalpetri.opcua.stack.core.util.ConversionUtil.a;
 import static com.digitalpetri.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
+import static com.digitalpetri.opcua.stack.core.util.ConversionUtil.a;
 import static com.google.common.collect.Lists.newCopyOnWriteArrayList;
 
 public class OpcUaClient implements UaClient {
@@ -572,6 +573,14 @@ public class OpcUaClient implements UaClient {
 
     public void removeFaultHandler(ServiceFaultHandler faultHandler) {
         faultHandlers.remove(faultHandler);
+    }
+
+    public void addSessionStateListener(SessionStateListener listener) {
+        stateContext.addListener(listener);
+    }
+
+    public void removeSessionStateListener(SessionStateListener listener) {
+        stateContext.removeListener(listener);
     }
 
 }

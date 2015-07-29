@@ -19,6 +19,7 @@
 
 package com.digitalpetri.opcua.sdk.client.fsm;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -29,12 +30,15 @@ import com.digitalpetri.opcua.sdk.client.fsm.states.Inactive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.google.common.collect.Lists.newCopyOnWriteArrayList;
+
 public class SessionStateContext {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final AtomicReference<SessionState> state =
-            new AtomicReference<>(new Inactive());
+    private final List<SessionStateListener> listeners = newCopyOnWriteArrayList();
+
+    private final AtomicReference<SessionState> state = new AtomicReference<>(new Inactive());
 
     private final OpcUaClient client;
 
@@ -43,16 +47,26 @@ public class SessionStateContext {
     }
 
     public synchronized void handleEvent(SessionStateEvent event) {
-        SessionState currState = state.get();
-        SessionState nextState = currState.transition(event, this);
+        SessionState prevState = state.get();
+        SessionState nextState = prevState.transition(event, this);
 
         logger.debug("S({}) x E({}) = S'({})",
-                currState.getClass().getSimpleName(), event, nextState.getClass().getSimpleName());
+                prevState.getClass().getSimpleName(), event, nextState.getClass().getSimpleName());
 
-        if (nextState != currState) {
+        if (nextState != prevState) {
             state.set(nextState);
             nextState.activate(event, this);
         }
+
+        if (!isActive(prevState) && isActive(nextState)) {
+            listeners.forEach(l -> l.onSessionActive(event));
+        } else if (isActive(prevState) && !isActive(nextState)) {
+            listeners.forEach(l -> l.onSessionInactive(event));
+        }
+    }
+
+    private boolean isActive(SessionState state) {
+        return state instanceof Active;
     }
 
     public synchronized CompletableFuture<UaSession> getSession() {
@@ -69,6 +83,32 @@ public class SessionStateContext {
 
     public OpcUaClient getClient() {
         return client;
+    }
+
+    public void addListener(SessionStateListener listener) {
+        listeners.add(listener);
+    }
+
+    public void removeListener(SessionStateListener listener) {
+        listeners.remove(listener);
+    }
+
+    public interface SessionStateListener {
+
+        /**
+         * An activated {@link UaSession} is now available.
+         *
+         * @param event the {@link SessionStateEvent} that caused the state transition.
+         */
+        void onSessionActive(SessionStateEvent event);
+
+        /**
+         * The previously activated {@link UaSession} is no longer available.
+         *
+         * @param event the {@link SessionStateEvent} that caused the state transition.
+         */
+        void onSessionInactive(SessionStateEvent event);
+
     }
 
 }
