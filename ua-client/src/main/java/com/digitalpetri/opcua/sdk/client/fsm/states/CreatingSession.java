@@ -19,6 +19,7 @@
 
 package com.digitalpetri.opcua.sdk.client.fsm.states;
 
+import java.security.cert.CertificateEncodingException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -28,8 +29,6 @@ import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
-import com.digitalpetri.opcua.stack.core.UaException;
-import com.digitalpetri.opcua.stack.core.channel.ClientSecureChannel;
 import com.digitalpetri.opcua.stack.core.types.builtin.ByteString;
 import com.digitalpetri.opcua.stack.core.types.structured.CreateSessionRequest;
 import com.digitalpetri.opcua.stack.core.types.structured.CreateSessionResponse;
@@ -66,7 +65,6 @@ public class CreatingSession implements SessionState {
     private CompletableFuture<CreateSessionResponse> createSession(SessionStateContext context) {
         OpcUaClient client = context.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
-        ClientSecureChannel secureChannel = stackClient.getSecureChannel();
 
         String serverUri = stackClient.getEndpoint().flatMap(e -> {
             String gatewayServerUri = e.getServer().getGatewayServerUri();
@@ -79,12 +77,13 @@ public class CreatingSession implements SessionState {
 
         clientNonce = NonceUtil.generateNonce(32);
 
-        ByteString clientCertificate;
-        try {
-            clientCertificate = secureChannel.getLocalCertificateBytes();
-        } catch (UaException e) {
-            clientCertificate = ByteString.NULL_VALUE;
-        }
+        ByteString clientCertificate = stackClient.getConfig().getCertificate().map(c -> {
+            try {
+                return ByteString.of(c.getEncoded());
+            } catch (CertificateEncodingException e) {
+                return ByteString.NULL_VALUE;
+            }
+        }).orElse(ByteString.NULL_VALUE);
 
         CreateSessionRequest request = new CreateSessionRequest(
                 client.newRequestHeader(),

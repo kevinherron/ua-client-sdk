@@ -140,37 +140,39 @@ public class Reactivating implements SessionState {
         OpcUaClient client = context.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
-        try {
-            EndpointDescription endpoint = stackClient.getEndpoint()
-                    .orElseThrow(() -> new Exception("cannot create session with no endpoint configured"));
+        return stackClient.getChannelFuture().thenCompose(secureChannel -> {
+            try {
+                EndpointDescription endpoint = stackClient.getEndpoint()
+                        .orElseThrow(() -> new Exception("cannot create session with no endpoint configured"));
 
-            Tuple2<UserIdentityToken, SignatureData> tuple =
-                    client.getConfig().getIdentityProvider().getIdentityToken(endpoint, session.getServerNonce());
+                Tuple2<UserIdentityToken, SignatureData> tuple =
+                        client.getConfig().getIdentityProvider().getIdentityToken(endpoint, session.getServerNonce());
 
-            UserIdentityToken userIdentityToken = tuple.v1();
-            SignatureData userTokenSignature = tuple.v2();
+                UserIdentityToken userIdentityToken = tuple.v1();
+                SignatureData userTokenSignature = tuple.v2();
 
-            SignatureData clientSignature = buildClientSignature(
-                    stackClient.getSecureChannel(),
-                    session.getServerCertificate(),
-                    session.getServerNonce());
+                SignatureData clientSignature = buildClientSignature(
+                        secureChannel,
+                        session.getServerCertificate(),
+                        session.getServerNonce());
 
-            ActivateSessionRequest request = new ActivateSessionRequest(
-                    client.newRequestHeader(session.getAuthenticationToken()),
-                    clientSignature,
-                    new SignedSoftwareCertificate[0],
-                    new String[0],
-                    ExtensionObject.encode(userIdentityToken),
-                    userTokenSignature);
+                ActivateSessionRequest request = new ActivateSessionRequest(
+                        client.newRequestHeader(session.getAuthenticationToken()),
+                        clientSignature,
+                        new SignedSoftwareCertificate[0],
+                        new String[0],
+                        ExtensionObject.encode(userIdentityToken),
+                        userTokenSignature);
 
-            logger.debug("Sending ActivateSessionRequest...");
+                logger.debug("Sending ActivateSessionRequest...");
 
-            return stackClient.sendRequest(request);
-        } catch (Exception e) {
-            CompletableFuture<ActivateSessionResponse> f = new CompletableFuture<>();
-            f.completeExceptionally(e);
-            return f;
-        }
+                return stackClient.sendRequest(request);
+            } catch (Exception e) {
+                CompletableFuture<ActivateSessionResponse> f = new CompletableFuture<>();
+                f.completeExceptionally(e);
+                return f;
+            }
+        });
     }
 
     private SignatureData buildClientSignature(ClientSecureChannel secureChannel,

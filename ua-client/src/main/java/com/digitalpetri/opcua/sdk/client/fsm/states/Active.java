@@ -29,6 +29,7 @@ import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.StatusCodes;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.slf4j.Logger;
@@ -63,8 +64,10 @@ public class Active implements SessionState {
             }
         });
 
-        stackClient.getChannelFuture().thenAccept(ch -> {
-            ch.pipeline().addLast(channelHandler = new ChannelInboundHandlerAdapter() {
+        stackClient.getChannelFuture().thenAccept(sc -> {
+            Channel channel = sc.getChannel();
+
+            channel.pipeline().addLast(channelHandler = new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
                     context.handleEvent(SessionStateEvent.ERR_CONNECTION_LOST);
