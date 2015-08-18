@@ -102,15 +102,18 @@ public class UsernameProvider implements IdentityProvider {
             X509Certificate certificate = CertificateUtil.decodeCertificate(bs.bytes());
 
             int plainTextBlockSize = getPlainTextBlockSize(certificate, securityPolicy);
+            int cipherTextBlockSize = getCipherTextBlockSize(certificate, securityPolicy);
             int blockCount = (buffer.readableBytes() + plainTextBlockSize - 1) / plainTextBlockSize;
             Cipher cipher = getAndInitializeCipher(certificate, securityPolicy);
 
             ByteBuffer plainTextNioBuffer = buffer.nioBuffer();
-            ByteBuffer cipherTextNioBuffer = Unpooled.buffer().order(ByteOrder.LITTLE_ENDIAN).nioBuffer();
+            ByteBuffer cipherTextNioBuffer = Unpooled.buffer(cipherTextBlockSize * blockCount)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .nioBuffer(0, cipherTextBlockSize * blockCount);
 
             for (int blockNumber = 0; blockNumber < blockCount; blockNumber++) {
                 int position = blockNumber * plainTextBlockSize;
-                int limit = (blockNumber + 1) * plainTextBlockSize;
+                int limit = Math.min(buffer.readableBytes(), (blockNumber + 1) * plainTextBlockSize);
                 plainTextNioBuffer.position(position).limit(limit);
 
                 cipher.doFinal(plainTextNioBuffer, cipherTextNioBuffer);
@@ -159,6 +162,19 @@ public class UsernameProvider implements IdentityProvider {
 
         return 1;
     }
+
+    public int getCipherTextBlockSize(X509Certificate certificate, SecurityPolicy securityPolicy) {
+        SecurityAlgorithm algorithm = securityPolicy.getAsymmetricEncryptionAlgorithm();
+
+        switch (algorithm) {
+            case Rsa15:
+            case RsaOaep:
+                return (getAsymmetricKeyLength(certificate) + 1) / 8;
+        }
+
+        return 1;
+    }
+
 
     private int getAsymmetricKeyLength(X509Certificate certificate) {
         PublicKey publicKey = certificate != null ?
