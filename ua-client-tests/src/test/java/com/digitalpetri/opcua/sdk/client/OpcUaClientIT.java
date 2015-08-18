@@ -1,6 +1,7 @@
 package com.digitalpetri.opcua.sdk.client;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -10,15 +11,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.api.config.OpcUaClientConfig;
+import com.digitalpetri.opcua.sdk.client.api.identity.UsernameProvider;
 import com.digitalpetri.opcua.sdk.client.api.nodes.attached.UaVariableNode;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaMonitoredItem;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaSubscription;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaSubscriptionManager.SubscriptionListener;
-import com.digitalpetri.opcua.stack.core.AttributeId;
 import com.digitalpetri.opcua.sdk.server.OpcUaServer;
 import com.digitalpetri.opcua.sdk.server.api.config.OpcUaServerConfig;
+import com.digitalpetri.opcua.sdk.server.identity.UsernameIdentityValidator;
 import com.digitalpetri.opcua.server.ctt.CttNamespace;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
+import com.digitalpetri.opcua.stack.core.AttributeId;
 import com.digitalpetri.opcua.stack.core.Identifiers;
 import com.digitalpetri.opcua.stack.core.UaException;
 import com.digitalpetri.opcua.stack.core.security.SecurityPolicy;
@@ -35,7 +38,9 @@ import com.digitalpetri.opcua.stack.core.types.structured.EndpointDescription;
 import com.digitalpetri.opcua.stack.core.types.structured.MonitoredItemCreateRequest;
 import com.digitalpetri.opcua.stack.core.types.structured.MonitoringParameters;
 import com.digitalpetri.opcua.stack.core.types.structured.ReadValueId;
+import com.digitalpetri.opcua.stack.core.types.structured.UserTokenPolicy;
 import com.digitalpetri.opcua.stack.server.tcp.SocketServer;
+import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterTest;
@@ -60,14 +65,52 @@ public class OpcUaClientIT {
     public void startClientAndServer() throws Exception {
         logger.info("startClientAndServer()");
 
+        UsernameIdentityValidator identityValidator = new UsernameIdentityValidator(
+                true, // allow anonymous access
+                challenge -> {
+                    String user0 = "user";
+                    String pass0 = "password";
+
+                    char[] cs = new char[1000];
+                    Arrays.fill(cs, 'a');
+                    String user1 = new String(cs);
+                    String pass1 = new String(cs);
+
+                    boolean match0 = user0.equals(challenge.getUsername()) &&
+                            pass0.equals(challenge.getPassword());
+
+                    boolean match1 = user1.equals(challenge.getUsername()) &&
+                            pass1.equals(challenge.getPassword());
+
+                    return match0 || match1;
+                }
+        );
+
+        List<UserTokenPolicy> userTokenPolicies = newArrayList(
+                OpcUaServerConfig.USER_TOKEN_POLICY_ANONYMOUS,
+                OpcUaServerConfig.USER_TOKEN_POLICY_USERNAME
+        );
+
+        KeyStoreLoader loader = new KeyStoreLoader().load();
+
+        TestCertificateManager certificateManager = new TestCertificateManager(
+                loader.getServerKeyPair(),
+                loader.getServerCertificate(),
+                Sets.newHashSet(loader.getClientCertificate())
+        );
+
         OpcUaServerConfig serverConfig = OpcUaServerConfig.builder()
                 .setApplicationName(LocalizedText.english("digitalpetri opc-ua server"))
                 .setApplicationUri("urn:digitalpetri:opcua:server")
                 .setBindAddresses(newArrayList("localhost"))
                 .setBindPort(12686)
+                .setCertificateManager(certificateManager)
+                .setSecurityPolicies(EnumSet.of(SecurityPolicy.None, SecurityPolicy.Basic128Rsa15))
                 .setProductUri("urn:digitalpetri:opcua:sdk")
                 .setServerName("test-server")
                 .setHostname("localhost")
+                .setUserTokenPolicies(userTokenPolicies)
+                .setIdentityValidator(identityValidator)
                 .build();
 
         server = new OpcUaServer(serverConfig);
@@ -245,6 +288,62 @@ public class OpcUaClientIT {
         assertEquals(updateCount.get(), 2);
 
         assertTrue(subscriptionTransferred.get());
+    }
+
+    @Test
+    public void testUsernamePassword() throws Exception {
+        EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
+
+        EndpointDescription endpoint = Arrays.stream(endpoints)
+                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+                .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+
+        KeyStoreLoader loader = new KeyStoreLoader().load();
+
+        OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
+                .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
+                .setApplicationUri("urn:digitalpetri:opcua:client")
+                .setCertificate(loader.getClientCertificate())
+                .setKeyPair(loader.getClientKeyPair())
+                .setEndpoint(endpoint)
+                .setRequestTimeout(uint(60000))
+                .setIdentityProvider(new UsernameProvider("user", "password"))
+                .build();
+
+        OpcUaClient client = new OpcUaClient(clientConfig);
+
+        client.connect().get();
+    }
+
+    /**
+     * Test using a username and password long enough that the encryption requires multiple ciphertext blocks.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testUsernamePassword_MultiBlock() throws Exception {
+        EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
+
+        EndpointDescription endpoint = Arrays.stream(endpoints)
+                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+                .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+
+        char[] cs = new char[1000];
+        Arrays.fill(cs, 'a');
+        String user = new String(cs);
+        String pass = new String(cs);
+
+        OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
+                .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
+                .setApplicationUri("urn:digitalpetri:opcua:client")
+                .setEndpoint(endpoint)
+                .setRequestTimeout(uint(60000))
+                .setIdentityProvider(new UsernameProvider(user, pass))
+                .build();
+
+        OpcUaClient client = new OpcUaClient(clientConfig);
+
+        client.connect().get();
     }
 
 }
