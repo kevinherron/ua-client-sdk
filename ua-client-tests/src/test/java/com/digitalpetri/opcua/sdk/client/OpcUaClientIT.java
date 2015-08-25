@@ -108,7 +108,6 @@ public class OpcUaClientIT {
                 .setSecurityPolicies(EnumSet.of(SecurityPolicy.None, SecurityPolicy.Basic128Rsa15))
                 .setProductUri("urn:digitalpetri:opcua:sdk")
                 .setServerName("test-server")
-                .setHostname("localhost")
                 .setUserTokenPolicies(userTokenPolicies)
                 .setIdentityValidator(identityValidator)
                 .build();
