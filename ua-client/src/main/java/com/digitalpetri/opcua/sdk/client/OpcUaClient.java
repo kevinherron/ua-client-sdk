@@ -22,7 +22,7 @@ package com.digitalpetri.opcua.sdk.client;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import com.digitalpetri.opcua.sdk.client.api.ServiceFaultHandler;
+import com.digitalpetri.opcua.sdk.client.api.ServiceFaultListener;
 import com.digitalpetri.opcua.sdk.client.api.UaClient;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.api.config.OpcUaClientConfig;
@@ -115,7 +115,7 @@ public class OpcUaClient implements UaClient {
 
     private final LongSequence requestHandles = new LongSequence(0, UInteger.MAX_VALUE);
 
-    private final List<ServiceFaultHandler> faultHandlers = newCopyOnWriteArrayList();
+    private final List<ServiceFaultListener> faultListeners = newCopyOnWriteArrayList();
     private final ExecutionQueue faultNotificationQueue;
 
     private final AddressSpace addressSpace;
@@ -539,7 +539,7 @@ public class OpcUaClient implements UaClient {
     public <T extends UaResponseMessage> CompletableFuture<T> sendRequest(UaRequestMessage request) {
         CompletableFuture<T> f = stackClient.sendRequest(request);
 
-        if (faultHandlers.size() > 0) {
+        if (faultListeners.size() > 0) {
             f.whenCompleteAsync(this::maybeHandleServiceFault, getConfig().getExecutor());
         }
 
@@ -556,23 +556,23 @@ public class OpcUaClient implements UaClient {
     }
 
     private void maybeHandleServiceFault(UaResponseMessage response, Throwable ex) {
-        if (faultHandlers.isEmpty()) return;
+        if (faultListeners.isEmpty()) return;
 
         if (ex instanceof UaServiceFaultException) {
             UaServiceFaultException faultException = (UaServiceFaultException) ex;
             ServiceFault serviceFault = faultException.getServiceFault();
 
             faultNotificationQueue.submit(() ->
-                    faultHandlers.stream().forEach(h -> h.handle(serviceFault)));
+                    faultListeners.stream().forEach(h -> h.onServiceFault(serviceFault)));
         }
     }
 
-    public void addFaultHandler(ServiceFaultHandler faultHandler) {
-        faultHandlers.add(faultHandler);
+    public void addFaultListener(ServiceFaultListener faultListener) {
+        faultListeners.add(faultListener);
     }
 
-    public void removeFaultHandler(ServiceFaultHandler faultHandler) {
-        faultHandlers.remove(faultHandler);
+    public void removeFaultListener(ServiceFaultListener faultListener) {
+        faultListeners.remove(faultListener);
     }
 
     public void addSessionStateListener(SessionStateListener listener) {

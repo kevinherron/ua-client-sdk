@@ -22,7 +22,7 @@ package com.digitalpetri.opcua.sdk.client.fsm.states;
 import java.util.concurrent.CompletableFuture;
 
 import com.digitalpetri.opcua.sdk.client.OpcUaClient;
-import com.digitalpetri.opcua.sdk.client.api.ServiceFaultHandler;
+import com.digitalpetri.opcua.sdk.client.api.ServiceFaultListener;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
@@ -39,7 +39,7 @@ public class Active implements SessionState {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private volatile ServiceFaultHandler faultHandler;
+    private volatile ServiceFaultListener faultListener;
     private volatile ChannelInboundHandlerAdapter channelHandler;
 
     private final UaSession session;
@@ -55,7 +55,7 @@ public class Active implements SessionState {
         OpcUaClient client = context.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
-        client.addFaultHandler(faultHandler = serviceFault -> {
+        client.addFaultListener(faultListener = serviceFault -> {
             long statusCode = serviceFault.getResponseHeader().getServiceResult().getValue();
 
             if (statusCode == StatusCodes.Bad_SessionIdInvalid) {
@@ -85,7 +85,7 @@ public class Active implements SessionState {
         OpcUaClient client = context.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
-        client.removeFaultHandler(faultHandler);
+        client.removeFaultListener(faultListener);
 
         switch (event) {
             case DISCONNECT_REQUESTED:

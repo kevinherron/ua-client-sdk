@@ -21,13 +21,13 @@ package com.digitalpetri.opcua.sdk.client.api;
 
 import com.digitalpetri.opcua.stack.core.types.structured.ServiceFault;
 
-public interface ServiceFaultHandler {
+public interface ServiceFaultListener {
 
     /**
-     * A {@link ServiceFault} matching this handlers test criteria occurred; handle it.
+     * A {@link ServiceFault} has occurred.
      *
      * @param serviceFault the {@link ServiceFault}.
      */
-    void handle(ServiceFault serviceFault);
+    void onServiceFault(ServiceFault serviceFault);
 
 }
