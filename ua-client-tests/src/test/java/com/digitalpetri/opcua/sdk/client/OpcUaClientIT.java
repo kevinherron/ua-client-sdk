@@ -105,7 +105,7 @@ public class OpcUaClientIT {
                 .setBindAddresses(newArrayList("localhost"))
                 .setBindPort(12686)
                 .setCertificateManager(certificateManager)
-                .setSecurityPolicies(EnumSet.of(SecurityPolicy.None, SecurityPolicy.Basic128Rsa15))
+                .setSecurityPolicies(EnumSet.of(SecurityPolicy.NONE, SecurityPolicy.BASIC_128_RSA_15))
                 .setProductUri("urn:digitalpetri:opcua:sdk")
                 .setServerName("test-server")
                 .setUserTokenPolicies(userTokenPolicies)
@@ -124,7 +124,7 @@ public class OpcUaClientIT {
         EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
 
         EndpointDescription endpoint = Arrays.stream(endpoints)
-                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.NONE.getSecurityPolicyUri()))
                 .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
 
         OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
@@ -294,7 +294,7 @@ public class OpcUaClientIT {
         EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
 
         EndpointDescription endpoint = Arrays.stream(endpoints)
-                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.NONE.getSecurityPolicyUri()))
                 .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
 
         KeyStoreLoader loader = new KeyStoreLoader().load();
@@ -324,7 +324,7 @@ public class OpcUaClientIT {
         EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
 
         EndpointDescription endpoint = Arrays.stream(endpoints)
-                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.NONE.getSecurityPolicyUri()))
                 .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
 
         char[] cs = new char[1000];

@@ -143,7 +143,7 @@ public class ActivatingSession implements SessionState {
 
         SecurityAlgorithm signatureAlgorithm = secureChannel.getSecurityPolicy().getAsymmetricSignatureAlgorithm();
 
-        if (secureChannel.getSecurityPolicy() != SecurityPolicy.None) {
+        if (secureChannel.getSecurityPolicy() != SecurityPolicy.NONE) {
             try {
                 PrivateKey privateKey = secureChannel.getKeyPair().getPrivate();
 
