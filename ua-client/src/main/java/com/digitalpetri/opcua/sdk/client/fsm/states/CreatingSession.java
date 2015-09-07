@@ -26,8 +26,8 @@ import java.util.concurrent.CompletableFuture;
 import com.digitalpetri.opcua.sdk.client.OpcUaClient;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.types.builtin.ByteString;
 import com.digitalpetri.opcua.stack.core.types.structured.CreateSessionRequest;
@@ -40,7 +40,6 @@ public class CreatingSession implements SessionState {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private volatile ByteString clientNonce = ByteString.NULL_VALUE;
     private volatile CreateSessionResponse csr;
 
     private final CompletableFuture<UaSession> future;
@@ -50,20 +49,26 @@ public class CreatingSession implements SessionState {
     }
 
     @Override
-    public void activate(SessionStateEvent event, SessionStateContext context) {
-        createSession(context).whenComplete((csr, ex) -> {
+    public CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm) {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+
+        createSession(fsm).whenComplete((csr, ex) -> {
             if (csr != null) {
                 this.csr = csr;
-                context.handleEvent(SessionStateEvent.CREATE_SUCCEEDED);
+                fsm.handleEvent(SessionStateEvent.CREATE_SUCCEEDED);
             } else {
-                context.handleEvent(SessionStateEvent.ERR_CREATE_FAILED);
+                fsm.handleEvent(SessionStateEvent.ERR_CREATE_FAILED);
                 future.completeExceptionally(ex);
             }
+
+            f.complete(null);
         });
+
+        return f;
     }
 
-    private CompletableFuture<CreateSessionResponse> createSession(SessionStateContext context) {
-        OpcUaClient client = context.getClient();
+    private CompletableFuture<CreateSessionResponse> createSession(SessionStateFsm fsm) {
+        OpcUaClient client = fsm.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
         String serverUri = stackClient.getEndpoint().flatMap(e -> {
@@ -75,7 +80,7 @@ public class CreatingSession implements SessionState {
             }
         }).orElse(null);
 
-        clientNonce = NonceUtil.generateNonce(32);
+        ByteString clientNonce = NonceUtil.generateNonce(32);
 
         ByteString clientCertificate = stackClient.getConfig().getCertificate().map(c -> {
             try {
@@ -103,7 +108,7 @@ public class CreatingSession implements SessionState {
 
 
     @Override
-    public SessionState transition(SessionStateEvent event, SessionStateContext context) {
+    public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
             case CREATE_SUCCEEDED:
                 return new ActivatingSession(future, csr);

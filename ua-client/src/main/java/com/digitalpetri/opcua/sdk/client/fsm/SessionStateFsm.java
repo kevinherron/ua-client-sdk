@@ -27,54 +27,74 @@ import com.digitalpetri.opcua.sdk.client.OpcUaClient;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.fsm.states.Active;
 import com.digitalpetri.opcua.sdk.client.fsm.states.Inactive;
+import com.digitalpetri.opcua.stack.core.util.AsyncSemaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.google.common.collect.Lists.newCopyOnWriteArrayList;
 
-public class SessionStateContext {
+public class SessionStateFsm {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final List<SessionStateListener> listeners = newCopyOnWriteArrayList();
 
+    private final AsyncSemaphore semaphore = new AsyncSemaphore(1);
+
     private final AtomicReference<SessionState> state = new AtomicReference<>(new Inactive());
 
     private final OpcUaClient client;
 
-    public SessionStateContext(OpcUaClient client) {
+    public SessionStateFsm(OpcUaClient client) {
         this.client = client;
     }
 
-    public synchronized void handleEvent(SessionStateEvent event) {
-        SessionState prevState = state.get();
-        SessionState nextState = prevState.transition(event, this);
+    public synchronized CompletableFuture<SessionState> handleEvent(SessionStateEvent event) {
+        logger.debug("handleEvent({})", event);
+        CompletableFuture<SessionState> future = new CompletableFuture<>();
 
-        logger.debug("S({}) x E({}) = S'({})",
-                prevState.getClass().getSimpleName(), event, nextState.getClass().getSimpleName());
+        semaphore.acquire().thenAccept(permit -> {
+            logger.debug("semaphore acquired - handleEvent({})", event);
+            CompletableFuture<SessionState> f = handleEvent0(event);
 
-        if (nextState != prevState) {
-            state.set(nextState);
-            nextState.activate(event, this);
-        }
+            f.whenComplete((s, t) -> {
+                future.complete(s);
+                permit.release();
+            });
+        });
 
-        if (!isActive(prevState) && isActive(nextState)) {
-            listeners.forEach(l -> l.onSessionActive(event));
-        } else if (isActive(prevState) && !isActive(nextState)) {
-            listeners.forEach(l -> l.onSessionInactive(event));
-        }
+        return future;
     }
 
-    private boolean isActive(SessionState state) {
-        return state instanceof Active;
+    private CompletableFuture<SessionState> handleEvent0(SessionStateEvent event) {
+        final SessionState currState = state.get();
+        final SessionState nextState = currState.transition(event, this);
+
+        logger.debug("S({}) x E({}) = S'({})", currState, event, nextState);
+
+        if (currState != nextState) {
+            logger.debug("deactivating S({})", currState);
+
+            return currState.deactivate(event, this).thenApply(vd -> {
+                logger.debug("deactivated S({})", currState);
+                logger.debug("activating S({})", nextState);
+
+                return nextState.activate(event, this);
+            }).thenApply(vd -> {
+                logger.debug("activated S({})", nextState);
+
+                state.set(nextState);
+
+                return nextState;
+            });
+        } else {
+            return CompletableFuture.completedFuture(currState);
+        }
     }
 
     public synchronized CompletableFuture<UaSession> getSession() {
-        if (!isActive()) {
-            handleEvent(SessionStateEvent.SESSION_REQUESTED);
-        }
-
-        return state.get().getSessionFuture();
+        return handleEvent(SessionStateEvent.SESSION_REQUESTED)
+                .thenCompose(SessionState::getSessionFuture);
     }
 
     public boolean isActive() {

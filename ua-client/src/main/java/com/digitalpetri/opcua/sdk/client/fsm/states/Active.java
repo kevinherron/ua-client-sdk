@@ -25,8 +25,8 @@ import com.digitalpetri.opcua.sdk.client.OpcUaClient;
 import com.digitalpetri.opcua.sdk.client.api.ServiceFaultListener;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.StatusCodes;
 import io.netty.channel.Channel;
@@ -40,7 +40,6 @@ public class Active implements SessionState {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private volatile ServiceFaultListener faultListener;
-    private volatile ChannelInboundHandlerAdapter channelHandler;
 
     private final UaSession session;
     private final CompletableFuture<UaSession> future;
@@ -51,8 +50,8 @@ public class Active implements SessionState {
     }
 
     @Override
-    public void activate(SessionStateEvent event, SessionStateContext context) {
-        OpcUaClient client = context.getClient();
+    public CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm) {
+        OpcUaClient client = fsm.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
         client.addFaultListener(faultListener = serviceFault -> {
@@ -60,17 +59,17 @@ public class Active implements SessionState {
 
             if (statusCode == StatusCodes.Bad_SessionIdInvalid) {
                 logger.warn("ServiceFault: {}", serviceFault.getResponseHeader().getServiceResult());
-                context.handleEvent(SessionStateEvent.ERR_SESSION_INVALID);
+                fsm.handleEvent(SessionStateEvent.ERR_SESSION_INVALID);
             }
         });
 
         stackClient.getChannelFuture().thenAccept(sc -> {
             Channel channel = sc.getChannel();
 
-            channel.pipeline().addLast(channelHandler = new ChannelInboundHandlerAdapter() {
+            channel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-                    context.handleEvent(SessionStateEvent.ERR_CONNECTION_LOST);
+                    fsm.handleEvent(SessionStateEvent.ERR_CONNECTION_LOST);
                 }
             });
         });
@@ -78,15 +77,21 @@ public class Active implements SessionState {
         client.getSubscriptionManager().restartPublishing();
 
         future.complete(session);
+
+        return CF_VOID_COMPLETED;
     }
 
     @Override
-    public SessionState transition(SessionStateEvent event, SessionStateContext context) {
-        OpcUaClient client = context.getClient();
-        UaTcpStackClient stackClient = client.getStackClient();
+    public CompletableFuture<Void> deactivate(SessionStateEvent event, SessionStateFsm fsm) {
+        OpcUaClient client = fsm.getClient();
 
         client.removeFaultListener(faultListener);
 
+        return CF_VOID_COMPLETED;
+    }
+
+    @Override
+    public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
             case DISCONNECT_REQUESTED:
                 return new ClosingSession(session);

@@ -23,22 +23,23 @@ import java.util.concurrent.CompletableFuture;
 
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
-import com.digitalpetri.opcua.stack.core.StatusCodes;
-import com.digitalpetri.opcua.stack.core.UaException;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 
 public class Inactive implements SessionState {
 
+    private final CompletableFuture<UaSession> sessionFuture = new CompletableFuture<>();
+
     @Override
-    public void activate(SessionStateEvent event, SessionStateContext context) {
+    public CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm) {
+        return CF_VOID_COMPLETED;
     }
 
     @Override
-    public SessionState transition(SessionStateEvent event, SessionStateContext context) {
+    public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
             case SESSION_REQUESTED:
-                return new CreatingSession(new CompletableFuture<>());
+                return new CreatingSession(sessionFuture);
         }
 
         return this;
@@ -46,9 +47,7 @@ public class Inactive implements SessionState {
 
     @Override
     public CompletableFuture<UaSession> getSessionFuture() {
-        CompletableFuture<UaSession> f = new CompletableFuture<>();
-        f.completeExceptionally(new UaException(StatusCodes.Bad_SessionClosed, "session is closed"));
-        return f;
+        return sessionFuture;
     }
 
 }

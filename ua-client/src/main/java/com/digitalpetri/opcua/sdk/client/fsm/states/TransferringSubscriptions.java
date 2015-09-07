@@ -26,8 +26,8 @@ import com.digitalpetri.opcua.sdk.client.OpcUaClient;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaSubscription;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.sdk.client.subscriptions.OpcUaSubscriptionManager;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.StatusCodes;
@@ -53,8 +53,10 @@ public class TransferringSubscriptions implements SessionState {
     }
 
     @Override
-    public void activate(SessionStateEvent event, SessionStateContext context) {
-        OpcUaClient client = context.getClient();
+    public CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm) {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+
+        OpcUaClient client = fsm.getClient();
         OpcUaSubscriptionManager subscriptionManager = client.getSubscriptionManager();
         List<UaSubscription> subscriptions = subscriptionManager.getSubscriptions();
 
@@ -77,7 +79,7 @@ public class TransferringSubscriptions implements SessionState {
                         }
                     }
 
-                    context.handleEvent(SessionStateEvent.TRANSFER_SUCCEEDED);
+                    fsm.handleEvent(SessionStateEvent.TRANSFER_SUCCEEDED);
                 } else {
                     StatusCode statusCode = UaException.extract(ex)
                             .map(UaException::getStatusCode)
@@ -87,15 +89,21 @@ public class TransferringSubscriptions implements SessionState {
                             statusCode.getValue() == StatusCodes.Bad_NotSupported ||
                             statusCode.getValue() == StatusCodes.Bad_OutOfService) {
 
-                        context.handleEvent(SessionStateEvent.ERR_TRANSFER_UNSUPPORTED);
+                        fsm.handleEvent(SessionStateEvent.ERR_TRANSFER_UNSUPPORTED);
                     } else {
-                        context.handleEvent(SessionStateEvent.ERR_TRANSFER_FAILED);
+                        fsm.handleEvent(SessionStateEvent.ERR_TRANSFER_FAILED);
 
                         future.completeExceptionally(ex);
                     }
                 }
+
+                f.complete(null);
             });
+        } else {
+            f.complete(null);
         }
+
+        return f;
     }
 
     private CompletableFuture<TransferSubscriptionsResponse> transferSubscriptions(OpcUaClient client,
@@ -116,7 +124,7 @@ public class TransferringSubscriptions implements SessionState {
     }
 
     @Override
-    public SessionState transition(SessionStateEvent event, SessionStateContext context) {
+    public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
             case TRANSFER_SUCCEEDED:
             case ERR_TRANSFER_UNSUPPORTED:

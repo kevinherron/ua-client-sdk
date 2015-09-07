@@ -25,22 +25,34 @@ import com.digitalpetri.opcua.sdk.client.api.UaSession;
 
 public interface SessionState {
 
+    CompletableFuture<Void> CF_VOID_COMPLETED = CompletableFuture.completedFuture(null);
+
     /**
      * Activate this state.
      *
-     * @param event   the {@link SessionStateEvent} that caused this state to be activated.
-     * @param context the {@link SessionStateContext}.
+     * @param event the {@link SessionStateEvent} that caused this state to be activated.
+     * @param fsm   the {@link SessionStateFsm}.
      */
-    void activate(SessionStateEvent event, SessionStateContext context);
+    CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm);
+
+    /**
+     * Deactive this state.
+     *
+     * @param event the {@link SessionStateEvent} that caused this state to be deactivated.
+     * @param fsm   the {@link SessionStateFsm}.
+     */
+    default CompletableFuture<Void> deactivate(SessionStateEvent event, SessionStateFsm fsm) {
+        return CF_VOID_COMPLETED;
+    }
 
     /**
      * Given {@code event}, return the next {@link SessionState}.
      *
-     * @param event   the {@link SessionStateEvent}.
-     * @param context the {@link SessionStateContext}.
+     * @param event the {@link SessionStateEvent}.
+     * @param fsm   the {@link SessionStateFsm}.
      * @return the next {@link SessionState}.
      */
-    SessionState transition(SessionStateEvent event, SessionStateContext context);
+    SessionState transition(SessionStateEvent event, SessionStateFsm fsm);
 
     /**
      * @return the {@link CompletableFuture} holding the {@link UaSession} for this client connection.

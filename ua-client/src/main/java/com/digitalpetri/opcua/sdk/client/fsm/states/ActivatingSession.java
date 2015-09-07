@@ -28,8 +28,8 @@ import com.digitalpetri.opcua.sdk.client.OpcUaClient;
 import com.digitalpetri.opcua.sdk.client.OpcUaSession;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.sdk.client.subscriptions.OpcUaSubscriptionManager;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.channel.ClientSecureChannel;
@@ -64,8 +64,10 @@ public class ActivatingSession implements SessionState {
     }
 
     @Override
-    public void activate(SessionStateEvent event, SessionStateContext context) {
-        OpcUaClient client = context.getClient();
+    public CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm) {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+
+        OpcUaClient client = fsm.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
         activateSession(client, stackClient).whenComplete((asr, ex) -> {
@@ -75,7 +77,7 @@ public class ActivatingSession implements SessionState {
                 session = new OpcUaSession(
                         csr.getAuthenticationToken(),
                         csr.getSessionId(),
-                        context.getClient().getConfig().getSessionName().get(),
+                        fsm.getClient().getConfig().getSessionName().get(),
                         csr.getRevisedSessionTimeout(),
                         csr.getMaxRequestMessageSize(),
                         csr.getServerCertificate(),
@@ -83,15 +85,19 @@ public class ActivatingSession implements SessionState {
 
                 session.setServerNonce(asr.getServerNonce());
 
-                context.handleEvent(SessionStateEvent.ACTIVATE_SUCCEEDED);
+                fsm.handleEvent(SessionStateEvent.ACTIVATE_SUCCEEDED);
             } else {
                 logger.debug("ActivatingSession failed: {}", ex.getMessage(), ex);
 
-                context.handleEvent(SessionStateEvent.ERR_ACTIVATE_FAILED);
+                fsm.handleEvent(SessionStateEvent.ERR_ACTIVATE_FAILED);
 
                 future.completeExceptionally(ex);
             }
+
+            f.complete(null);
         });
+
+        return f;
     }
 
     private CompletableFuture<ActivateSessionResponse> activateSession(OpcUaClient client, UaTcpStackClient stackClient) {
@@ -160,8 +166,8 @@ public class ActivatingSession implements SessionState {
     }
 
     @Override
-    public SessionState transition(SessionStateEvent event, SessionStateContext context) {
-        OpcUaClient client = context.getClient();
+    public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
+        OpcUaClient client = fsm.getClient();
         OpcUaSubscriptionManager subscriptionManager = client.getSubscriptionManager();
         boolean transferNeeded = !subscriptionManager.getSubscriptions().isEmpty();
 

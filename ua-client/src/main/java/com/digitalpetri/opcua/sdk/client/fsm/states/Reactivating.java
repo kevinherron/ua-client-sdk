@@ -30,8 +30,8 @@ import com.digitalpetri.opcua.sdk.client.OpcUaClient;
 import com.digitalpetri.opcua.sdk.client.OpcUaSession;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.Stack;
 import com.digitalpetri.opcua.stack.core.StatusCodes;
@@ -73,16 +73,18 @@ public class Reactivating implements SessionState {
     }
 
     @Override
-    public void activate(SessionStateEvent event, SessionStateContext context) {
+    public CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm) {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+
         Runnable activate = () -> {
             scheduledFuture = null;
 
-            activateSession(context, previousSession).whenComplete((asr, ex) -> {
+            activateSession(fsm, previousSession).whenComplete((asr, ex) -> {
                 if (asr != null) {
                     session = new OpcUaSession(
                             previousSession.getAuthenticationToken(),
                             previousSession.getSessionId(),
-                            context.getClient().getConfig().getSessionName().get(),
+                            fsm.getClient().getConfig().getSessionName().get(),
                             previousSession.getSessionTimeout(),
                             previousSession.getMaxRequestSize(),
                             previousSession.getServerCertificate(),
@@ -90,7 +92,7 @@ public class Reactivating implements SessionState {
 
                     session.setServerNonce(asr.getServerNonce());
 
-                    context.handleEvent(SessionStateEvent.REACTIVATE_SUCCEEDED);
+                    fsm.handleEvent(SessionStateEvent.REACTIVATE_SUCCEEDED);
                 } else {
                     StatusCode statusCode = UaException.extract(ex)
                             .map(UaException::getStatusCode)
@@ -102,13 +104,15 @@ public class Reactivating implements SessionState {
                             statusCode.getValue() == StatusCodes.Bad_SecurityChecksFailed) {
 
                         // Treat any session-related errors as re-activate failed.
-                        context.handleEvent(SessionStateEvent.ERR_REACTIVATE_INVALID);
+                        fsm.handleEvent(SessionStateEvent.ERR_REACTIVATE_INVALID);
                     } else {
-                        context.handleEvent(SessionStateEvent.ERR_REACTIVATE_FAILED);
+                        fsm.handleEvent(SessionStateEvent.ERR_REACTIVATE_FAILED);
                     }
 
                     future.completeExceptionally(ex);
                 }
+
+                f.complete(null);
             });
         };
 
@@ -118,10 +122,11 @@ public class Reactivating implements SessionState {
             scheduledFuture = Stack.sharedScheduledExecutor().schedule(activate, delay, TimeUnit.SECONDS);
         }
 
+        return f;
     }
 
     @Override
-    public SessionState transition(SessionStateEvent event, SessionStateContext context) {
+    public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
             case REACTIVATE_SUCCEEDED:
                 return new Active(session, future);
@@ -136,7 +141,7 @@ public class Reactivating implements SessionState {
         return this;
     }
 
-    private CompletableFuture<ActivateSessionResponse> activateSession(SessionStateContext context, UaSession session) {
+    private CompletableFuture<ActivateSessionResponse> activateSession(SessionStateFsm context, UaSession session) {
         OpcUaClient client = context.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 

@@ -24,8 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import com.digitalpetri.opcua.sdk.client.OpcUaClient;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionState;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.StatusCodes;
 import com.digitalpetri.opcua.stack.core.UaException;
@@ -40,19 +40,31 @@ public class ClosingSession implements SessionState {
     }
 
     @Override
-    public void activate(SessionStateEvent event, SessionStateContext context) {
-        OpcUaClient client = context.getClient();
+    public CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm) {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+
+        OpcUaClient client = fsm.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
         CloseSessionRequest request = new CloseSessionRequest(
                 client.newRequestHeader(session.getAuthenticationToken()), true);
 
-        stackClient.sendRequest(request).whenComplete((r, t) ->
-                context.handleEvent(SessionStateEvent.DISCONNECT_SUCCEEDED));
+        stackClient.sendRequest(request).whenComplete(
+                (r, t) -> disconnect(fsm, stackClient, f));
+
+        return f;
+    }
+
+    private void disconnect(SessionStateFsm fsm, UaTcpStackClient stackClient, CompletableFuture<Void> f) {
+        stackClient.disconnect().whenComplete((c, ex) -> {
+            fsm.handleEvent(SessionStateEvent.DISCONNECT_SUCCEEDED);
+
+            f.complete(null);
+        });
     }
 
     @Override
-    public SessionState transition(SessionStateEvent event, SessionStateContext context) {
+    public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
             case DISCONNECT_SUCCEEDED:
                 return new Inactive();

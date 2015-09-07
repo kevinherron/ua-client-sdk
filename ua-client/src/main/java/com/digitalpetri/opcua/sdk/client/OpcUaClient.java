@@ -28,9 +28,9 @@ import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.api.config.OpcUaClientConfig;
 import com.digitalpetri.opcua.sdk.client.api.nodes.AddressSpace;
 import com.digitalpetri.opcua.sdk.client.api.nodes.NodeCache;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateContext.SessionStateListener;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
+import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm.SessionStateListener;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultAddressSpace;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultNodeCache;
 import com.digitalpetri.opcua.sdk.client.subscriptions.OpcUaSubscriptionManager;
@@ -106,12 +106,16 @@ import com.digitalpetri.opcua.stack.core.types.structured.WriteResponse;
 import com.digitalpetri.opcua.stack.core.types.structured.WriteValue;
 import com.digitalpetri.opcua.stack.core.util.ExecutionQueue;
 import com.digitalpetri.opcua.stack.core.util.LongSequence;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.digitalpetri.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
 import static com.digitalpetri.opcua.stack.core.util.ConversionUtil.a;
 import static com.google.common.collect.Lists.newCopyOnWriteArrayList;
 
 public class OpcUaClient implements UaClient {
+
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final LongSequence requestHandles = new LongSequence(0, UInteger.MAX_VALUE);
 
@@ -123,14 +127,14 @@ public class OpcUaClient implements UaClient {
     private final OpcUaSubscriptionManager subscriptionManager;
 
     private final UaTcpStackClient stackClient;
-    private final SessionStateContext stateContext;
+    private final SessionStateFsm stateContext;
 
     private final OpcUaClientConfig config;
 
     public OpcUaClient(OpcUaClientConfig config) {
         this.config = config;
 
-        stateContext = new SessionStateContext(this);
+        stateContext = new SessionStateFsm(this);
 
         stackClient = new UaTcpStackClient(config);
 
@@ -540,7 +544,7 @@ public class OpcUaClient implements UaClient {
         CompletableFuture<T> f = stackClient.sendRequest(request);
 
         if (faultListeners.size() > 0) {
-            f.whenCompleteAsync(this::maybeHandleServiceFault, getConfig().getExecutor());
+            f.whenComplete(this::maybeHandleServiceFault);
         }
 
         return f;
@@ -550,7 +554,7 @@ public class OpcUaClient implements UaClient {
     public void sendRequests(List<? extends UaRequestMessage> requests,
                              List<CompletableFuture<? extends UaResponseMessage>> futures) {
 
-        futures.forEach(f -> f.whenCompleteAsync(this::maybeHandleServiceFault, getConfig().getExecutor()));
+        futures.forEach(f -> f.whenComplete(this::maybeHandleServiceFault));
 
         stackClient.sendRequests(requests, futures);
     }
@@ -558,29 +562,45 @@ public class OpcUaClient implements UaClient {
     private void maybeHandleServiceFault(UaResponseMessage response, Throwable ex) {
         if (faultListeners.isEmpty()) return;
 
-        if (ex instanceof UaServiceFaultException) {
-            UaServiceFaultException faultException = (UaServiceFaultException) ex;
-            ServiceFault serviceFault = faultException.getServiceFault();
+        if (ex != null) {
+            if (ex instanceof UaServiceFaultException) {
+                UaServiceFaultException faultException = (UaServiceFaultException) ex;
+                ServiceFault serviceFault = faultException.getServiceFault();
 
-            faultNotificationQueue.submit(() ->
-                    faultListeners.stream().forEach(h -> h.onServiceFault(serviceFault)));
+                logger.debug("Notifying {} ServiceFaultListeners", faultListeners.size());
+
+                faultNotificationQueue.submit(() ->
+                        faultListeners.stream().forEach(h -> h.onServiceFault(serviceFault)));
+            } else if (ex.getCause() instanceof UaServiceFaultException) {
+                UaServiceFaultException faultException = (UaServiceFaultException) ex.getCause();
+                ServiceFault serviceFault = faultException.getServiceFault();
+
+                logger.debug("Notifying {} ServiceFaultListeners", faultListeners.size());
+
+                faultNotificationQueue.submit(() ->
+                        faultListeners.stream().forEach(h -> h.onServiceFault(serviceFault)));
+            }
         }
     }
 
     public void addFaultListener(ServiceFaultListener faultListener) {
         faultListeners.add(faultListener);
+        logger.debug("Added ServiceFaultListener: {}", faultListener);
     }
 
     public void removeFaultListener(ServiceFaultListener faultListener) {
         faultListeners.remove(faultListener);
+        logger.debug("Removed ServiceFaultListener: {}", faultListener);
     }
 
     public void addSessionStateListener(SessionStateListener listener) {
         stateContext.addListener(listener);
+        logger.debug("Added SessionStateListener: {}", listener);
     }
 
     public void removeSessionStateListener(SessionStateListener listener) {
         stateContext.removeListener(listener);
+        logger.debug("Removed SessionStateListener: {}", listener);
     }
 
 }
