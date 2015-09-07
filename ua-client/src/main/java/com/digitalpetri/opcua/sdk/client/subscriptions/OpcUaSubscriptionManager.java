@@ -292,7 +292,10 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                     logger.debug("Publish service failure: {}", statusCode, ex);
 
                     if (statusCode.getValue() != StatusCodes.Bad_NoSubscription &&
-                            statusCode.getValue() != StatusCodes.Bad_TooManyPublishRequests) {
+                            statusCode.getValue() != StatusCodes.Bad_TooManyPublishRequests &&
+                            statusCode.getValue() != StatusCodes.Bad_SessionIdInvalid &&
+                            statusCode.getValue() != StatusCodes.Bad_SessionClosed) {
+
                         maybeSendPublishRequest();
                     }
 
@@ -312,12 +315,16 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 }
 
             }, client.getConfig().getExecutor());
+
+            maybeSendPublishRequest();
         } else {
             pendingPublishes.decrementAndGet();
         }
     }
 
     private void onPublishComplete(PublishResponse response) {
+        logger.debug("onPublishComplete() response for subscriptionId={}", response.getSubscriptionId());
+
         UInteger subscriptionId = response.getSubscriptionId();
         OpcUaSubscription subscription = subscriptions.get(subscriptionId);
 
@@ -476,7 +483,6 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     public void restartPublishing() {
-        pendingPublishes.set(0);
         maybeSendPublishRequest();
     }
 
