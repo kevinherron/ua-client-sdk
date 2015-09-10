@@ -79,12 +79,12 @@ public interface UaSubscriptionManager {
      * @param priority                    the relative priority to assign to the subscription.
      * @return a {@link CompletableFuture} containing the {@link UaSubscription}.
      */
-    public CompletableFuture<UaSubscription> modifySubscription(UInteger subscriptionId,
-                                                                double requestedPublishingInterval,
-                                                                UInteger requestedLifetimeCount,
-                                                                UInteger requestedMaxKeepAliveCount,
-                                                                UInteger maxNotificationsPerPublish,
-                                                                UByte priority);
+    CompletableFuture<UaSubscription> modifySubscription(UInteger subscriptionId,
+                                                         double requestedPublishingInterval,
+                                                         UInteger requestedLifetimeCount,
+                                                         UInteger requestedMaxKeepAliveCount,
+                                                         UInteger maxNotificationsPerPublish,
+                                                         UByte priority);
 
     /**
      * Delete a {@link UaSubscription}.

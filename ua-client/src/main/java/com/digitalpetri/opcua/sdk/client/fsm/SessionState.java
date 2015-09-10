@@ -36,7 +36,7 @@ public interface SessionState {
     CompletableFuture<Void> activate(SessionStateEvent event, SessionStateFsm fsm);
 
     /**
-     * Deactive this state.
+     * Deactivate this state.
      *
      * @param event the {@link SessionStateEvent} that caused this state to be deactivated.
      * @param fsm   the {@link SessionStateFsm}.

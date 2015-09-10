@@ -133,7 +133,7 @@ public interface SubscriptionServices {
      *
      * @param subscriptionId           the server-assigned identifier for the subscription to be republished.
      * @param retransmitSequenceNumber the sequence number of a specific notification message to be republished.
-     * @return
+     * @return a {@link CompletableFuture} containing the {@link RepublishResponse}.
      */
     CompletableFuture<RepublishResponse> republish(UInteger subscriptionId, UInteger retransmitSequenceNumber);
 
