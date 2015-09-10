@@ -93,7 +93,7 @@ public class SessionStateFsm {
     }
 
     public synchronized CompletableFuture<UaSession> getSession() {
-        return handleEvent(SessionStateEvent.SESSION_REQUESTED)
+        return handleEvent(SessionStateEvent.SessionRequested)
                 .thenCompose(SessionState::getSessionFuture);
     }
 

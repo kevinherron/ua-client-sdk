@@ -36,32 +36,32 @@ public class AttachedReferenceTypeNode extends AttachedNode implements UaReferen
 
     @Override
     public CompletableFuture<DataValue> readIsAbstract() {
-        return readAttribute(AttributeId.IS_ABSTRACT);
+        return readAttribute(AttributeId.IsAbstract);
     }
 
     @Override
     public CompletableFuture<DataValue> readSymmetric() {
-        return readAttribute(AttributeId.SYMMETRIC);
+        return readAttribute(AttributeId.Symmetric);
     }
 
     @Override
     public CompletableFuture<DataValue> readInverseName() {
-        return readAttribute(AttributeId.INVERSE_NAME);
+        return readAttribute(AttributeId.InverseName);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeIsAbstract(DataValue value) {
-        return writeAttribute(AttributeId.IS_ABSTRACT, value);
+        return writeAttribute(AttributeId.IsAbstract, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeSymmetric(DataValue value) {
-        return writeAttribute(AttributeId.SYMMETRIC, value);
+        return writeAttribute(AttributeId.Symmetric, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeInverseName(DataValue value) {
-        return writeAttribute(AttributeId.INVERSE_NAME, value);
+        return writeAttribute(AttributeId.InverseName, value);
     }
 
 }

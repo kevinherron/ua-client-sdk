@@ -72,7 +72,7 @@ public class UsernameProvider implements IdentityProvider {
 
         String policyId = tokenPolicy.getPolicyId();
 
-        SecurityPolicy securityPolicy = SecurityPolicy.NONE;
+        SecurityPolicy securityPolicy = SecurityPolicy.None;
 
         String securityPolicyUri = tokenPolicy.getSecurityPolicyUri();
         try {
@@ -91,7 +91,7 @@ public class UsernameProvider implements IdentityProvider {
 
         ByteBuf buffer = Unpooled.buffer().order(ByteOrder.LITTLE_ENDIAN);
 
-        if (securityPolicy == SecurityPolicy.NONE) {
+        if (securityPolicy == SecurityPolicy.None) {
             buffer.writeBytes(passwordBytes);
         } else {
             buffer.writeInt(passwordBytes.length + nonceBytes.length);
@@ -154,9 +154,9 @@ public class UsernameProvider implements IdentityProvider {
         SecurityAlgorithm algorithm = securityPolicy.getAsymmetricEncryptionAlgorithm();
 
         switch (algorithm) {
-            case RSA_15:
+            case Rsa15:
                 return (getAsymmetricKeyLength(certificate) + 1) / 8 - 11;
-            case RSA_OAEP:
+            case RsaOaep:
                 return (getAsymmetricKeyLength(certificate) + 1) / 8 - 42;
         }
 
@@ -167,8 +167,8 @@ public class UsernameProvider implements IdentityProvider {
         SecurityAlgorithm algorithm = securityPolicy.getAsymmetricEncryptionAlgorithm();
 
         switch (algorithm) {
-            case RSA_15:
-            case RSA_OAEP:
+            case Rsa15:
+            case RsaOaep:
                 return (getAsymmetricKeyLength(certificate) + 1) / 8;
         }
 

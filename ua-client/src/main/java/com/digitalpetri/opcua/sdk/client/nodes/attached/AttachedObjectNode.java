@@ -36,12 +36,12 @@ public class AttachedObjectNode extends AttachedNode implements UaObjectNode {
 
     @Override
     public CompletableFuture<DataValue> readEventNotifier() {
-        return readAttribute(AttributeId.EVENT_NOTIFIER);
+        return readAttribute(AttributeId.EventNotifier);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeEventNotifier(DataValue value) {
-        return writeAttribute(AttributeId.EVENT_NOTIFIER, value);
+        return writeAttribute(AttributeId.EventNotifier, value);
     }
 
 }

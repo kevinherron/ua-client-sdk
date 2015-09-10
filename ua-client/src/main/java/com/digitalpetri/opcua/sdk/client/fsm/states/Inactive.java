@@ -38,7 +38,7 @@ public class Inactive implements SessionState {
     @Override
     public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
-            case SESSION_REQUESTED:
+            case SessionRequested:
                 return new CreatingSession(sessionFuture);
         }
 

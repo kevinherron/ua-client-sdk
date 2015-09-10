@@ -36,22 +36,22 @@ public class AttachedMethodNode extends AttachedNode implements UaMethodNode {
 
     @Override
     public CompletableFuture<DataValue> readExecutable() {
-        return readAttribute(AttributeId.EXECUTABLE);
+        return readAttribute(AttributeId.Executable);
     }
 
     @Override
     public CompletableFuture<DataValue> readUserExecutable() {
-        return readAttribute(AttributeId.USER_EXECUTABLE);
+        return readAttribute(AttributeId.UserExecutable);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeExecutable(DataValue value) {
-        return writeAttribute(AttributeId.EXECUTABLE, value);
+        return writeAttribute(AttributeId.Executable, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeUserExecutable(DataValue value) {
-        return writeAttribute(AttributeId.USER_EXECUTABLE, value);
+        return writeAttribute(AttributeId.UserExecutable, value);
     }
 
 }

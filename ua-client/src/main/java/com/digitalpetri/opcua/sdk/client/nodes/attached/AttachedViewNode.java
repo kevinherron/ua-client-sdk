@@ -36,22 +36,22 @@ public class AttachedViewNode extends AttachedNode implements UaViewNode {
 
     @Override
     public CompletableFuture<DataValue> readContainsNoLoops() {
-        return readAttribute(AttributeId.CONTAINS_NO_LOOPS);
+        return readAttribute(AttributeId.ContainsNoLoops);
     }
 
     @Override
     public CompletableFuture<DataValue> readEventNotifier() {
-        return readAttribute(AttributeId.EVENT_NOTIFIER);
+        return readAttribute(AttributeId.EventNotifier);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeContainsNoLoops(DataValue value) {
-        return writeAttribute(AttributeId.CONTAINS_NO_LOOPS, value);
+        return writeAttribute(AttributeId.ContainsNoLoops, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeEventNotifier(DataValue value) {
-        return writeAttribute(AttributeId.EVENT_NOTIFIER, value);
+        return writeAttribute(AttributeId.EventNotifier, value);
     }
     
 }

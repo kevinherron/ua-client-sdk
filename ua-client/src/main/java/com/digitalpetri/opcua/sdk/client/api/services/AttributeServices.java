@@ -111,7 +111,7 @@ public interface AttributeServices {
                                                           List<NodeId> nodeIds) {
 
         List<ReadValueId> readValueIds = nodeIds.stream()
-                .map(nodeId -> new ReadValueId(nodeId, AttributeId.VALUE.uid(), null, QualifiedName.NULL_VALUE))
+                .map(nodeId -> new ReadValueId(nodeId, AttributeId.Value.uid(), null, QualifiedName.NULL_VALUE))
                 .collect(Collectors.toList());
 
         return read(maxAge, timestampsToReturn, readValueIds)

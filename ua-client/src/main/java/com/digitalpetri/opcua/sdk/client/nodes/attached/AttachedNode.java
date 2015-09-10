@@ -53,42 +53,42 @@ public class AttachedNode implements UaNode {
 
     @Override
     public CompletableFuture<DataValue> readNodeId() {
-        return readAttribute(AttributeId.NODE_ID);
+        return readAttribute(AttributeId.NodeId);
     }
 
     @Override
     public CompletableFuture<DataValue> readNodeClass() {
-        return readAttribute(AttributeId.NODE_CLASS);
+        return readAttribute(AttributeId.NodeClass);
     }
 
     @Override
     public CompletableFuture<DataValue> readBrowseName() {
-        return readAttribute(AttributeId.BROWSE_NAME);
+        return readAttribute(AttributeId.BrowseName);
     }
 
     @Override
     public CompletableFuture<DataValue> readDisplayName() {
-        return readAttribute(AttributeId.DISPLAY_NAME);
+        return readAttribute(AttributeId.DisplayName);
     }
 
     @Override
     public CompletableFuture<DataValue> readDescription() {
-        return readAttribute(AttributeId.DESCRIPTION);
+        return readAttribute(AttributeId.Description);
     }
 
     @Override
     public CompletableFuture<DataValue> readWriteMask() {
-        return readAttribute(AttributeId.WRITE_MASK);
+        return readAttribute(AttributeId.WriteMask);
     }
 
     @Override
     public CompletableFuture<DataValue> readUserWriteMask() {
-        return readAttribute(AttributeId.USER_WRITE_MASK);
+        return readAttribute(AttributeId.UserWriteMask);
     }
 
     protected CompletableFuture<DataValue> readAttribute(AttributeId attributeId) {
         Optional<DataValue> opt =
-                attributeId == AttributeId.VALUE ?
+                attributeId == AttributeId.Value ?
                         Optional.empty() :
                         nodeCache.getAttribute(nodeId, attributeId);
 
@@ -102,7 +102,7 @@ public class AttachedNode implements UaNode {
             return future.thenApply(response -> {
                 DataValue value = response.getResults()[0];
 
-                if (attributeId != AttributeId.VALUE) {
+                if (attributeId != AttributeId.Value) {
                     nodeCache.putAttribute(nodeId, attributeId, value);
                 }
 
@@ -113,37 +113,37 @@ public class AttachedNode implements UaNode {
 
     @Override
     public CompletableFuture<StatusCode> writeNodeId(DataValue value) {
-        return writeAttribute(AttributeId.NODE_ID, value);
+        return writeAttribute(AttributeId.NodeId, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeNodeClass(DataValue value) {
-        return writeAttribute(AttributeId.NODE_CLASS, value);
+        return writeAttribute(AttributeId.NodeClass, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeBrowseName(DataValue value) {
-        return writeAttribute(AttributeId.BROWSE_NAME, value);
+        return writeAttribute(AttributeId.BrowseName, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeDisplayName(DataValue value) {
-        return writeAttribute(AttributeId.DISPLAY_NAME, value);
+        return writeAttribute(AttributeId.DisplayName, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeDescription(DataValue value) {
-        return writeAttribute(AttributeId.DESCRIPTION, value);
+        return writeAttribute(AttributeId.Description, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeWriteMask(DataValue value) {
-        return writeAttribute(AttributeId.WRITE_MASK, value);
+        return writeAttribute(AttributeId.WriteMask, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeUserWriteMask(DataValue value) {
-        return writeAttribute(AttributeId.USER_WRITE_MASK, value);
+        return writeAttribute(AttributeId.UserWriteMask, value);
     }
 
     protected CompletableFuture<StatusCode> writeAttribute(AttributeId attributeId, DataValue value) {

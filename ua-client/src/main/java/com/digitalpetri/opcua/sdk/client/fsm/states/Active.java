@@ -59,7 +59,7 @@ public class Active implements SessionState {
 
             if (statusCode == StatusCodes.Bad_SessionIdInvalid) {
                 logger.warn("ServiceFault: {}", serviceFault.getResponseHeader().getServiceResult());
-                fsm.handleEvent(SessionStateEvent.ERR_SESSION_INVALID);
+                fsm.handleEvent(SessionStateEvent.ErrSessionInvalid);
             }
         });
 
@@ -69,7 +69,7 @@ public class Active implements SessionState {
             channel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-                    fsm.handleEvent(SessionStateEvent.ERR_CONNECTION_LOST);
+                    fsm.handleEvent(SessionStateEvent.ErrConnectionLost);
                 }
             });
         });
@@ -93,13 +93,13 @@ public class Active implements SessionState {
     @Override
     public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
-            case DISCONNECT_REQUESTED:
+            case DisconnectRequested:
                 return new ClosingSession(session);
 
-            case ERR_CONNECTION_LOST:
+            case ErrConnectionLost:
                 return new Reactivating(session, 0);
 
-            case ERR_SESSION_INVALID:
+            case ErrSessionInvalid:
                 return new CreatingSession(new CompletableFuture<>());
         }
 

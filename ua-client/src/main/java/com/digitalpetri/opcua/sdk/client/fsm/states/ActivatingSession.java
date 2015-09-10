@@ -85,11 +85,11 @@ public class ActivatingSession implements SessionState {
 
                 session.setServerNonce(asr.getServerNonce());
 
-                fsm.handleEvent(SessionStateEvent.ACTIVATE_SUCCEEDED);
+                fsm.handleEvent(SessionStateEvent.ActivateSucceeded);
             } else {
                 logger.debug("ActivatingSession failed: {}", ex.getMessage(), ex);
 
-                fsm.handleEvent(SessionStateEvent.ERR_ACTIVATE_FAILED);
+                fsm.handleEvent(SessionStateEvent.ErrActivateFailed);
 
                 future.completeExceptionally(ex);
             }
@@ -149,7 +149,7 @@ public class ActivatingSession implements SessionState {
 
         SecurityAlgorithm signatureAlgorithm = secureChannel.getSecurityPolicy().getAsymmetricSignatureAlgorithm();
 
-        if (secureChannel.getSecurityPolicy() != SecurityPolicy.NONE) {
+        if (secureChannel.getSecurityPolicy() != SecurityPolicy.None) {
             try {
                 PrivateKey privateKey = secureChannel.getKeyPair().getPrivate();
 
@@ -172,15 +172,15 @@ public class ActivatingSession implements SessionState {
         boolean transferNeeded = !subscriptionManager.getSubscriptions().isEmpty();
 
         switch (event) {
-            case ACTIVATE_SUCCEEDED:
+            case ActivateSucceeded:
                 if (transferNeeded) {
                     return new TransferringSubscriptions(session, future);
                 } else {
                     return new Active(session, future);
                 }
 
-            case ERR_ACTIVATE_FAILED:
-            case DISCONNECT_REQUESTED:
+            case ErrActivateFailed:
+            case DisconnectRequested:
                 return new Inactive();
         }
 

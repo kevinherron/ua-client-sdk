@@ -57,7 +57,7 @@ public class ClosingSession implements SessionState {
 
     private void disconnect(SessionStateFsm fsm, UaTcpStackClient stackClient, CompletableFuture<Void> f) {
         stackClient.disconnect().whenComplete((c, ex) -> {
-            fsm.handleEvent(SessionStateEvent.DISCONNECT_SUCCEEDED);
+            fsm.handleEvent(SessionStateEvent.DisconnectSucceeded);
 
             f.complete(null);
         });
@@ -66,10 +66,10 @@ public class ClosingSession implements SessionState {
     @Override
     public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
-            case DISCONNECT_SUCCEEDED:
+            case DisconnectSucceeded:
                 return new Inactive();
 
-            case SESSION_REQUESTED:
+            case SessionRequested:
                 return new CreatingSession(new CompletableFuture<>());
         }
 

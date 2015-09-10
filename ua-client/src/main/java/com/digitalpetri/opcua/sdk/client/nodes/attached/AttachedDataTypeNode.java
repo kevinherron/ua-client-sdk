@@ -36,12 +36,12 @@ public class AttachedDataTypeNode extends AttachedNode implements UaDataTypeNode
 
     @Override
     public CompletableFuture<DataValue> readIsAbstract() {
-        return readAttribute(AttributeId.IS_ABSTRACT);
+        return readAttribute(AttributeId.IsAbstract);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeIsAbstract(DataValue value) {
-        return writeAttribute(AttributeId.IS_ABSTRACT, value);
+        return writeAttribute(AttributeId.IsAbstract, value);
     }
 
 }

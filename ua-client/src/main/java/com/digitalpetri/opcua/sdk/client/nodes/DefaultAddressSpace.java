@@ -64,7 +64,7 @@ public class DefaultAddressSpace implements AddressSpace {
     @Override
     public CompletableFuture<UaNode> getNode(NodeId nodeId) {
         ReadValueId readValueId = new ReadValueId(
-                nodeId, AttributeId.NODE_CLASS.uid(), null, QualifiedName.NULL_VALUE);
+                nodeId, AttributeId.NodeClass.uid(), null, QualifiedName.NULL_VALUE);
 
         CompletableFuture<ReadResponse> future =
                 client.read(0.0, TimestampsToReturn.Neither, newArrayList(readValueId));
@@ -74,7 +74,7 @@ public class DefaultAddressSpace implements AddressSpace {
             NodeClass nodeClass = (NodeClass) value.getValue().getValue();
 
             if (nodeClass != null) {
-                client.getNodeCache().putAttribute(nodeId, AttributeId.NODE_CLASS, value);
+                client.getNodeCache().putAttribute(nodeId, AttributeId.NodeClass, value);
 
                 return CompletableFuture.completedFuture(createNode(nodeId, nodeClass));
             } else {

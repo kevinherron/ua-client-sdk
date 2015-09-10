@@ -36,82 +36,82 @@ public class AttachedVariableNode extends AttachedNode implements UaVariableNode
 
     @Override
     public CompletableFuture<DataValue> readValue() {
-        return readAttribute(AttributeId.VALUE);
+        return readAttribute(AttributeId.Value);
     }
 
     @Override
     public CompletableFuture<DataValue> readDataType() {
-        return readAttribute(AttributeId.DATA_TYPE);
+        return readAttribute(AttributeId.DataType);
     }
 
     @Override
     public CompletableFuture<DataValue> readValueRank() {
-        return readAttribute(AttributeId.VALUE_RANK);
+        return readAttribute(AttributeId.ValueRank);
     }
 
     @Override
     public CompletableFuture<DataValue> readArrayDimensions() {
-        return readAttribute(AttributeId.ARRAY_DIMENSIONS);
+        return readAttribute(AttributeId.ArrayDimensions);
     }
 
     @Override
     public CompletableFuture<DataValue> readAccessLevel() {
-        return readAttribute(AttributeId.ACCESS_LEVEL);
+        return readAttribute(AttributeId.AccessLevel);
     }
 
     @Override
     public CompletableFuture<DataValue> readUserAccessLevel() {
-        return readAttribute(AttributeId.USER_ACCESS_LEVEL);
+        return readAttribute(AttributeId.UserAccessLevel);
     }
 
     @Override
     public CompletableFuture<DataValue> readMinimumSamplingInterval() {
-        return readAttribute(AttributeId.MINIMUM_SAMPLING_INTERVAL);
+        return readAttribute(AttributeId.MinimumSamplingInterval);
     }
 
     @Override
     public CompletableFuture<DataValue> readHistorizing() {
-        return readAttribute(AttributeId.HISTORIZING);
+        return readAttribute(AttributeId.Historizing);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeValue(DataValue value) {
-        return writeAttribute(AttributeId.VALUE, value);
+        return writeAttribute(AttributeId.Value, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeDataType(DataValue value) {
-        return writeAttribute(AttributeId.DATA_TYPE, value);
+        return writeAttribute(AttributeId.DataType, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeValueRank(DataValue value) {
-        return writeAttribute(AttributeId.VALUE_RANK, value);
+        return writeAttribute(AttributeId.ValueRank, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeArrayDimensions(DataValue value) {
-        return writeAttribute(AttributeId.ARRAY_DIMENSIONS, value);
+        return writeAttribute(AttributeId.ArrayDimensions, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeAccessLevel(DataValue value) {
-        return writeAttribute(AttributeId.ACCESS_LEVEL, value);
+        return writeAttribute(AttributeId.AccessLevel, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeUserAccessLevel(DataValue value) {
-        return writeAttribute(AttributeId.USER_ACCESS_LEVEL, value);
+        return writeAttribute(AttributeId.UserAccessLevel, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeMinimumSamplingInterval(DataValue value) {
-        return writeAttribute(AttributeId.MINIMUM_SAMPLING_INTERVAL, value);
+        return writeAttribute(AttributeId.MinimumSamplingInterval, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeHistorizing(DataValue value) {
-        return writeAttribute(AttributeId.HISTORIZING, value);
+        return writeAttribute(AttributeId.Historizing, value);
     }
 
 }

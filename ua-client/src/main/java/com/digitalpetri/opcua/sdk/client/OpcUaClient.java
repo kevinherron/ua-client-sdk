@@ -204,7 +204,7 @@ public class OpcUaClient implements UaClient {
 
     @Override
     public CompletableFuture<UaClient> disconnect() {
-        stateContext.handleEvent(SessionStateEvent.DISCONNECT_REQUESTED);
+        stateContext.handleEvent(SessionStateEvent.DisconnectRequested);
 
         return CompletableFuture.completedFuture(this);
     }

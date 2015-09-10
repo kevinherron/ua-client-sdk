@@ -55,9 +55,9 @@ public class CreatingSession implements SessionState {
         createSession(fsm).whenComplete((csr, ex) -> {
             if (csr != null) {
                 this.csr = csr;
-                fsm.handleEvent(SessionStateEvent.CREATE_SUCCEEDED);
+                fsm.handleEvent(SessionStateEvent.CreateSucceeded);
             } else {
-                fsm.handleEvent(SessionStateEvent.ERR_CREATE_FAILED);
+                fsm.handleEvent(SessionStateEvent.ErrCreateFailed);
                 future.completeExceptionally(ex);
             }
 
@@ -110,11 +110,11 @@ public class CreatingSession implements SessionState {
     @Override
     public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
-            case CREATE_SUCCEEDED:
+            case CreateSucceeded:
                 return new ActivatingSession(future, csr);
 
-            case ERR_CREATE_FAILED:
-            case DISCONNECT_REQUESTED:
+            case ErrCreateFailed:
+            case DisconnectRequested:
                 return new Inactive();
         }
 

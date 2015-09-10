@@ -36,52 +36,52 @@ public class AttachedVariableTypeNode extends AttachedNode implements UaVariable
 
     @Override
     public CompletableFuture<DataValue> readValue() {
-        return readAttribute(AttributeId.VALUE);
+        return readAttribute(AttributeId.Value);
     }
 
     @Override
     public CompletableFuture<DataValue> readDataType() {
-        return readAttribute(AttributeId.DATA_TYPE);
+        return readAttribute(AttributeId.DataType);
     }
 
     @Override
     public CompletableFuture<DataValue> readValueRank() {
-        return readAttribute(AttributeId.VALUE_RANK);
+        return readAttribute(AttributeId.ValueRank);
     }
 
     @Override
     public CompletableFuture<DataValue> readArrayDimensions() {
-        return readAttribute(AttributeId.ARRAY_DIMENSIONS);
+        return readAttribute(AttributeId.ArrayDimensions);
     }
 
     @Override
     public CompletableFuture<DataValue> readIsAbstract() {
-        return readAttribute(AttributeId.IS_ABSTRACT);
+        return readAttribute(AttributeId.IsAbstract);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeValue(DataValue value) {
-        return writeAttribute(AttributeId.VALUE, value);
+        return writeAttribute(AttributeId.Value, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeDataType(DataValue value) {
-        return writeAttribute(AttributeId.DATA_TYPE, value);
+        return writeAttribute(AttributeId.DataType, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeValueRank(DataValue value) {
-        return writeAttribute(AttributeId.VALUE_RANK, value);
+        return writeAttribute(AttributeId.ValueRank, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeArrayDimensions(DataValue value) {
-        return writeAttribute(AttributeId.ARRAY_DIMENSIONS, value);
+        return writeAttribute(AttributeId.ArrayDimensions, value);
     }
 
     @Override
     public CompletableFuture<StatusCode> writeIsAbstract(DataValue value) {
-        return writeAttribute(AttributeId.IS_ABSTRACT, value);
+        return writeAttribute(AttributeId.IsAbstract, value);
     }
 
 }

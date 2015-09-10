@@ -21,39 +21,26 @@ package com.digitalpetri.opcua.sdk.client.fsm;
 
 public enum SessionStateEvent {
 
-    ERR_CONNECTION_LOST,
-    ERR_SESSION_INVALID,
+    ErrConnectionLost,
+    ErrSessionInvalid,
 
-    SESSION_REQUESTED,
+    SessionRequested,
 
-    CREATE_REQUESTED,
-    CREATE_SUCCEEDED,
-    ERR_CREATE_FAILED,
+    CreateSucceeded,
+    ErrCreateFailed,
 
-    ACTIVATE_REQUESTED,
-    ACTIVATE_SUCCEEDED,
-    ERR_ACTIVATE_FAILED,
+    ActivateSucceeded,
+    ErrActivateFailed,
 
-    DISCONNECT_REQUESTED,
-    DISCONNECT_SUCCEEDED,
+    DisconnectRequested,
+    DisconnectSucceeded,
 
-    CREATE_SUBSCRIPTIONS_REQUESTED,
-    CREATE_SUBSCRIPTIONS_SUCCEEDED,
-    ERR_CREATE_SUBSCRIPTIONS_FAILED,
+    ReactivateSucceeded,
+    ErrReactivateFailed,
+    ErrReactivateInvalid,
 
-    REACTIVATE_REQUESTED,
-    REACTIVATE_SUCCEEDED,
-    ERR_REACTIVATE_FAILED,
-    ERR_REACTIVATE_INVALID,
-
-    REPUBLISH_REQUESTED,
-    REPUBLISH_SUCCEEDED,
-    ERR_REPUBLISH_FAILED,
-    ERR_REPUBLISH_UNSUPPORTED,
-
-    TRANSFER_REQUESTED,
-    TRANSFER_SUCCEEDED,
-    ERR_TRANSFER_FAILED,
-    ERR_TRANSFER_UNSUPPORTED;
+    TransferSucceeded,
+    ErrTransferFailed,
+    ErrTransferUnsupported
 
 }

@@ -79,7 +79,7 @@ public class TransferringSubscriptions implements SessionState {
                         }
                     }
 
-                    fsm.handleEvent(SessionStateEvent.TRANSFER_SUCCEEDED);
+                    fsm.handleEvent(SessionStateEvent.TransferSucceeded);
                 } else {
                     StatusCode statusCode = UaException.extract(ex)
                             .map(UaException::getStatusCode)
@@ -89,9 +89,9 @@ public class TransferringSubscriptions implements SessionState {
                             statusCode.getValue() == StatusCodes.Bad_NotSupported ||
                             statusCode.getValue() == StatusCodes.Bad_OutOfService) {
 
-                        fsm.handleEvent(SessionStateEvent.ERR_TRANSFER_UNSUPPORTED);
+                        fsm.handleEvent(SessionStateEvent.ErrTransferUnsupported);
                     } else {
-                        fsm.handleEvent(SessionStateEvent.ERR_TRANSFER_FAILED);
+                        fsm.handleEvent(SessionStateEvent.ErrTransferFailed);
 
                         future.completeExceptionally(ex);
                     }
@@ -126,12 +126,12 @@ public class TransferringSubscriptions implements SessionState {
     @Override
     public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
-            case TRANSFER_SUCCEEDED:
-            case ERR_TRANSFER_UNSUPPORTED:
+            case TransferSucceeded:
+            case ErrTransferUnsupported:
                 return new Active(session, future);
 
-            case ERR_TRANSFER_FAILED:
-            case DISCONNECT_REQUESTED:
+            case ErrTransferFailed:
+            case DisconnectRequested:
                 return new ClosingSession(session);
         }
 

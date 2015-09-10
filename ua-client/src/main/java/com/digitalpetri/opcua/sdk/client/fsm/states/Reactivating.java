@@ -92,7 +92,7 @@ public class Reactivating implements SessionState {
 
                     session.setServerNonce(asr.getServerNonce());
 
-                    fsm.handleEvent(SessionStateEvent.REACTIVATE_SUCCEEDED);
+                    fsm.handleEvent(SessionStateEvent.ReactivateSucceeded);
                 } else {
                     StatusCode statusCode = UaException.extract(ex)
                             .map(UaException::getStatusCode)
@@ -104,9 +104,9 @@ public class Reactivating implements SessionState {
                             statusCode.getValue() == StatusCodes.Bad_SecurityChecksFailed) {
 
                         // Treat any session-related errors as re-activate failed.
-                        fsm.handleEvent(SessionStateEvent.ERR_REACTIVATE_INVALID);
+                        fsm.handleEvent(SessionStateEvent.ErrReactivateInvalid);
                     } else {
-                        fsm.handleEvent(SessionStateEvent.ERR_REACTIVATE_FAILED);
+                        fsm.handleEvent(SessionStateEvent.ErrReactivateFailed);
                     }
 
                     future.completeExceptionally(ex);
@@ -128,13 +128,13 @@ public class Reactivating implements SessionState {
     @Override
     public SessionState transition(SessionStateEvent event, SessionStateFsm fsm) {
         switch (event) {
-            case REACTIVATE_SUCCEEDED:
+            case ReactivateSucceeded:
                 return new Active(session, future);
 
-            case ERR_REACTIVATE_FAILED:
+            case ErrReactivateFailed:
                 return new Reactivating(previousSession, nextDelay());
 
-            case ERR_REACTIVATE_INVALID:
+            case ErrReactivateInvalid:
                 return new CreatingSession(new CompletableFuture<>());
         }
 
@@ -194,7 +194,7 @@ public class Reactivating implements SessionState {
 
         SecurityAlgorithm signatureAlgorithm = secureChannel.getSecurityPolicy().getAsymmetricSignatureAlgorithm();
 
-        if (secureChannel.getSecurityPolicy() != SecurityPolicy.NONE) {
+        if (secureChannel.getSecurityPolicy() != SecurityPolicy.None) {
             try {
                 PrivateKey privateKey = secureChannel.getKeyPair().getPrivate();
 
