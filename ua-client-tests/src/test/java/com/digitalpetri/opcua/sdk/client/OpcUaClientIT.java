@@ -40,7 +40,6 @@ import com.digitalpetri.opcua.stack.core.types.structured.MonitoringParameters;
 import com.digitalpetri.opcua.stack.core.types.structured.ReadValueId;
 import com.digitalpetri.opcua.stack.core.types.structured.UserTokenPolicy;
 import com.digitalpetri.opcua.stack.server.tcp.SocketServer;
-import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterTest;
@@ -95,8 +94,11 @@ public class OpcUaClientIT {
 
         TestCertificateManager certificateManager = new TestCertificateManager(
                 loader.getServerKeyPair(),
-                loader.getServerCertificate(),
-                Sets.newHashSet(loader.getClientCertificate())
+                loader.getServerCertificate()
+        );
+
+        TestCertificateValidator certificateValidator = new TestCertificateValidator(
+                loader.getClientCertificate()
         );
 
         OpcUaServerConfig serverConfig = OpcUaServerConfig.builder()
@@ -105,6 +107,7 @@ public class OpcUaClientIT {
                 .setBindAddresses(newArrayList("localhost"))
                 .setBindPort(12686)
                 .setCertificateManager(certificateManager)
+                .setCertificateValidator(certificateValidator)
                 .setSecurityPolicies(EnumSet.of(SecurityPolicy.None, SecurityPolicy.Basic128Rsa15))
                 .setProductUri("urn:digitalpetri:opcua:sdk")
                 .setServerName("test-server")
