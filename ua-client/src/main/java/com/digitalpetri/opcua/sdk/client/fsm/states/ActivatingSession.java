@@ -192,4 +192,9 @@ public class ActivatingSession implements SessionState {
         return future;
     }
 
+    @Override
+    public String toString() {
+        return "ActivatingSession{}";
+    }
+
 }

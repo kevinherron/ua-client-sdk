@@ -39,10 +39,12 @@ public class Active implements SessionState {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
+    private volatile Channel channel;
     private volatile ServiceFaultListener faultListener;
 
     private final UaSession session;
     private final CompletableFuture<UaSession> future;
+    private ChannelInboundHandlerAdapter channelInboundHandlerAdapter;
 
     public Active(UaSession session, CompletableFuture<UaSession> future) {
         this.session = session;
@@ -64,14 +66,16 @@ public class Active implements SessionState {
         });
 
         stackClient.getChannelFuture().thenAccept(sc -> {
-            Channel channel = sc.getChannel();
+            channel = sc.getChannel();
 
-            channel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+            channelInboundHandlerAdapter = new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
                     fsm.handleEvent(SessionStateEvent.ErrConnectionLost);
                 }
-            });
+            };
+
+            channel.pipeline().addLast(channelInboundHandlerAdapter);
         });
 
         client.getSubscriptionManager().restartPublishing();
@@ -84,6 +88,10 @@ public class Active implements SessionState {
     @Override
     public CompletableFuture<Void> deactivate(SessionStateEvent event, SessionStateFsm fsm) {
         OpcUaClient client = fsm.getClient();
+
+        if (channel != null && channelInboundHandlerAdapter != null) {
+            channel.pipeline().remove(channelInboundHandlerAdapter);
+        }
 
         client.removeFaultListener(faultListener);
 
@@ -111,5 +119,9 @@ public class Active implements SessionState {
         return future;
     }
 
+    @Override
+    public String toString() {
+        return "Active{}";
+    }
 
 }

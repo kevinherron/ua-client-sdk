@@ -31,6 +31,7 @@ import com.digitalpetri.opcua.sdk.client.api.nodes.NodeCache;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm.SessionStateListener;
+import com.digitalpetri.opcua.sdk.client.fsm.states.ClosingSession;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultAddressSpace;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultNodeCache;
 import com.digitalpetri.opcua.sdk.client.subscriptions.OpcUaSubscriptionManager;
@@ -127,14 +128,14 @@ public class OpcUaClient implements UaClient {
     private final OpcUaSubscriptionManager subscriptionManager;
 
     private final UaTcpStackClient stackClient;
-    private final SessionStateFsm stateContext;
+    private final SessionStateFsm fsm;
 
     private final OpcUaClientConfig config;
 
     public OpcUaClient(OpcUaClientConfig config) {
         this.config = config;
 
-        stateContext = new SessionStateFsm(this);
+        fsm = new SessionStateFsm(this);
 
         stackClient = new UaTcpStackClient(config);
 
@@ -204,9 +205,19 @@ public class OpcUaClient implements UaClient {
 
     @Override
     public CompletableFuture<UaClient> disconnect() {
-        stateContext.handleEvent(SessionStateEvent.DisconnectRequested);
+        return fsm.handleEvent(SessionStateEvent.DisconnectRequested).thenCompose(sessionState -> {
+            CompletableFuture<UaClient> future = new CompletableFuture<>();
 
-        return CompletableFuture.completedFuture(this);
+            if (sessionState instanceof ClosingSession) {
+                ClosingSession cs = (ClosingSession) sessionState;
+
+                cs.addCompletionListener(() -> future.complete(OpcUaClient.this));
+            } else {
+                future.complete(OpcUaClient.this);
+            }
+
+            return future;
+        });
     }
 
     @Override
@@ -536,7 +547,7 @@ public class OpcUaClient implements UaClient {
 
     @Override
     public final CompletableFuture<UaSession> getSession() {
-        return stateContext.getSession();
+        return fsm.getSession();
     }
 
     @Override
@@ -594,12 +605,12 @@ public class OpcUaClient implements UaClient {
     }
 
     public void addSessionStateListener(SessionStateListener listener) {
-        stateContext.addListener(listener);
+        fsm.addListener(listener);
         logger.debug("Added SessionStateListener: {}", listener);
     }
 
     public void removeSessionStateListener(SessionStateListener listener) {
-        stateContext.removeListener(listener);
+        fsm.removeListener(listener);
         logger.debug("Removed SessionStateListener: {}", listener);
     }
 

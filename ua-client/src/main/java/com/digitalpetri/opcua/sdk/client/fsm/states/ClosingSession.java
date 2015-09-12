@@ -19,6 +19,7 @@
 
 package com.digitalpetri.opcua.sdk.client.fsm.states;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.digitalpetri.opcua.sdk.client.OpcUaClient;
@@ -30,13 +31,28 @@ import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.StatusCodes;
 import com.digitalpetri.opcua.stack.core.UaException;
 import com.digitalpetri.opcua.stack.core.types.structured.CloseSessionRequest;
+import com.google.common.collect.Lists;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ClosingSession implements SessionState {
+
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    private final List<Runnable> listeners = Lists.newCopyOnWriteArrayList();
 
     private final UaSession session;
 
     public ClosingSession(UaSession session) {
         this.session = session;
+    }
+
+    public void addCompletionListener(Runnable listener) {
+        listeners.add(listener);
+    }
+
+    public void removeCompletionListener(Runnable listener) {
+        listeners.remove(listener);
     }
 
     @Override
@@ -49,18 +65,31 @@ public class ClosingSession implements SessionState {
         CloseSessionRequest request = new CloseSessionRequest(
                 client.newRequestHeader(session.getAuthenticationToken()), true);
 
-        stackClient.sendRequest(request).whenComplete(
-                (r, t) -> disconnect(fsm, stackClient, f));
+        stackClient.sendRequest(request).whenComplete((r, t) -> {
+            if (r != null) {
+                logger.debug("Session closed.");
+            } else {
+                logger.debug("Error closing session: {}", t.getMessage(), t);
+            }
+            disconnect(fsm, stackClient, f);
+        });
 
         return f;
     }
 
     private void disconnect(SessionStateFsm fsm, UaTcpStackClient stackClient, CompletableFuture<Void> f) {
         stackClient.disconnect().whenComplete((c, ex) -> {
+            logger.debug("Stack client disconnect complete.");
             fsm.handleEvent(SessionStateEvent.DisconnectSucceeded);
-
             f.complete(null);
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> deactivate(SessionStateEvent event, SessionStateFsm fsm) {
+        listeners.forEach(Runnable::run);
+
+        return CF_VOID_COMPLETED;
     }
 
     @Override
@@ -81,6 +110,11 @@ public class ClosingSession implements SessionState {
         CompletableFuture<UaSession> f = new CompletableFuture<>();
         f.completeExceptionally(new UaException(StatusCodes.Bad_SessionClosed, "session is closed"));
         return f;
+    }
+
+    @Override
+    public String toString() {
+        return "ClosingSession{}";
     }
 
 }

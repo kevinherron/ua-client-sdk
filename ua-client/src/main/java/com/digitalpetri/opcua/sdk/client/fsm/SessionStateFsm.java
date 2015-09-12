@@ -75,7 +75,7 @@ public class SessionStateFsm {
         if (currState != nextState) {
             logger.debug("deactivating S({})", currState);
 
-            return currState.deactivate(event, this).thenApply(vd -> {
+            return currState.deactivate(event, this).thenCompose(vd -> {
                 logger.debug("deactivated S({})", currState);
                 logger.debug("activating S({})", nextState);
 
@@ -86,6 +86,12 @@ public class SessionStateFsm {
                 state.set(nextState);
 
                 return nextState;
+            }).thenApply(ns -> {
+                logger.debug("notifying SessionStateListeners...");
+
+                maybeNotifyListeners(currState, nextState, event);
+
+                return ns;
             });
         } else {
             return CompletableFuture.completedFuture(currState);
@@ -97,12 +103,25 @@ public class SessionStateFsm {
                 .thenCompose(SessionState::getSessionFuture);
     }
 
-    public boolean isActive() {
-        return state.get() instanceof Active;
-    }
-
     public OpcUaClient getClient() {
         return client;
+    }
+
+    private void maybeNotifyListeners(SessionState prevState, SessionState nextState, SessionStateEvent event) {
+        if (isNotActive(prevState) && isActive(nextState)) {
+            listeners.forEach(l -> l.onSessionActive(event));
+        }
+        if (isActive(prevState) && isNotActive(nextState)) {
+            listeners.forEach(l -> l.onSessionInactive(event));
+        }
+    }
+
+    private boolean isActive(SessionState sessionState) {
+        return sessionState instanceof Active;
+    }
+
+    private boolean isNotActive(SessionState sessionState) {
+        return !isActive(sessionState);
     }
 
     public void addListener(SessionStateListener listener) {

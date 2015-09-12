@@ -126,4 +126,9 @@ public class CreatingSession implements SessionState {
         return future;
     }
 
+    @Override
+    public String toString() {
+        return "CreatingSession{}";
+    }
+
 }

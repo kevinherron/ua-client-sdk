@@ -224,4 +224,11 @@ public class Reactivating implements SessionState {
         }
     }
 
+    @Override
+    public String toString() {
+        return "Reactivating{" +
+                "delay=" + delay +
+                '}';
+    }
+    
 }

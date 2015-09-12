@@ -50,4 +50,9 @@ public class Inactive implements SessionState {
         return sessionFuture;
     }
 
+    @Override
+    public String toString() {
+        return "Inactive{}";
+    }
+
 }
