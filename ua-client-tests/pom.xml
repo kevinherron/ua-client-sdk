@@ -5,7 +5,7 @@
     <parent>
         <artifactId>ua-client-sdk</artifactId>
         <groupId>com.digitalpetri.opcua</groupId>
-        <version>1.0.0</version>
+        <version>1.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>ua-client-tests</artifactId>
@@ -14,7 +14,7 @@
         <dependency>
             <groupId>com.digitalpetri.opcua</groupId>
             <artifactId>ua-client</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
         <dependency>
