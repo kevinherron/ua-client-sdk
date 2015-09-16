@@ -41,7 +41,13 @@ public class AnonymousProvider implements IdentityProvider {
         String policyId = Arrays.stream(endpoint.getUserIdentityTokens())
                 .filter(t -> t.getTokenType() == UserTokenType.Anonymous)
                 .findFirst()
-                .map(UserTokenPolicy::getPolicyId)
+                .map(policy -> {
+                    String id = policy.getPolicyId();
+
+                    // treat a null id as empty string
+                    // else this becomes an empty Optional.
+                    return id == null ? "" : id;
+                })
                 .orElseThrow(() -> new Exception("no anonymous token policy found"));
 
         return new Tuple2<>(new AnonymousIdentityToken(policyId), new SignatureData());
