@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,6 +53,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class OpcUaClientIT {
 
@@ -346,6 +348,63 @@ public class OpcUaClientIT {
         OpcUaClient client = new OpcUaClient(clientConfig);
 
         client.connect().get();
+    }
+
+    @Test
+    public void testConnectAndDisconnect() throws Exception {
+        EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
+
+        EndpointDescription endpoint = Arrays.stream(endpoints)
+                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+                .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+
+        class ConnectDisconnect implements Runnable {
+            private final int threadNumber;
+
+            public ConnectDisconnect(int threadNumber) {
+                this.threadNumber = threadNumber;
+            }
+
+            OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
+                    .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
+                    .setApplicationUri("urn:digitalpetri:opcua:client")
+                    .setEndpoint(endpoint)
+                    .setRequestTimeout(uint(60000))
+                    .build();
+
+            OpcUaClient client = new OpcUaClient(clientConfig);
+
+            @Override
+            public void run() {
+                for (int i = 0; i < 1000; i++) {
+                    try {
+                        client.connect().get();
+
+                        client.readValues(
+                                0.0,
+                                TimestampsToReturn.Both,
+                                newArrayList(Identifiers.Server_ServerStatus_CurrentTime)
+                        ).get();
+
+                        client.disconnect().get();
+                    } catch (InterruptedException | ExecutionException e) {
+                        fail();
+                    }
+                }
+                logger.info("Thread {} done.", threadNumber);
+            }
+        }
+
+        Thread[] threads = new Thread[4];
+
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(new ConnectDisconnect(i));
+            threads[i].start();
+        }
+
+        for (Thread thread : threads) {
+            thread.join();
+        }
     }
 
 }
