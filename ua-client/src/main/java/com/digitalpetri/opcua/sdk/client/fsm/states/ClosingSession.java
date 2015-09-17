@@ -30,10 +30,14 @@ import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.StatusCodes;
 import com.digitalpetri.opcua.stack.core.UaException;
+import com.digitalpetri.opcua.stack.core.types.builtin.DateTime;
 import com.digitalpetri.opcua.stack.core.types.structured.CloseSessionRequest;
+import com.digitalpetri.opcua.stack.core.types.structured.RequestHeader;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.digitalpetri.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
 
 public class ClosingSession implements SessionState {
 
@@ -64,8 +68,17 @@ public class ClosingSession implements SessionState {
         OpcUaClient client = fsm.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
-        CloseSessionRequest request = new CloseSessionRequest(
-                client.newRequestHeader(session.getAuthenticationToken()), true);
+        RequestHeader requestHeader = new RequestHeader(
+                session.getAuthenticationToken(),
+                DateTime.now(),
+                client.nextRequestHandle(),
+                uint(0),
+                null,
+                uint(5000),
+                null
+        );
+
+        CloseSessionRequest request = new CloseSessionRequest(requestHeader, true);
 
         stackClient.sendRequest(request).whenComplete((r, t) -> {
             if (r != null) {
