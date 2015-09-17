@@ -19,7 +19,6 @@
 
 package com.digitalpetri.opcua.sdk.client.fsm.states;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.digitalpetri.opcua.sdk.client.OpcUaClient;
@@ -33,7 +32,6 @@ import com.digitalpetri.opcua.stack.core.UaException;
 import com.digitalpetri.opcua.stack.core.types.builtin.DateTime;
 import com.digitalpetri.opcua.stack.core.types.structured.CloseSessionRequest;
 import com.digitalpetri.opcua.stack.core.types.structured.RequestHeader;
-import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,22 +41,10 @@ public class ClosingSession implements SessionState {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final List<Runnable> listeners = Lists.newCopyOnWriteArrayList();
-
     private final UaSession session;
 
     public ClosingSession(UaSession session) {
         this.session = session;
-    }
-
-    public void addCompletionListener(Runnable listener) {
-        logger.debug("Adding completion listener: {}", listener);
-        listeners.add(listener);
-    }
-
-    public void removeCompletionListener(Runnable listener) {
-        logger.debug("Removing completion listener: {}", listener);
-        listeners.remove(listener);
     }
 
     @Override
@@ -102,11 +88,6 @@ public class ClosingSession implements SessionState {
 
     @Override
     public CompletableFuture<Void> deactivate(SessionStateEvent event, SessionStateFsm fsm) {
-        listeners.forEach(r -> {
-            logger.debug("Notifying completion listeners: {}", r);
-            r.run();
-        });
-
         return CF_VOID_COMPLETED;
     }
 

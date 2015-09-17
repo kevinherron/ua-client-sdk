@@ -205,19 +205,8 @@ public class OpcUaClient implements UaClient {
 
     @Override
     public CompletableFuture<UaClient> disconnect() {
-        return fsm.handleEvent(SessionStateEvent.DisconnectRequested).thenCompose(sessionState -> {
-            CompletableFuture<UaClient> future = new CompletableFuture<>();
-
-            if (sessionState instanceof ClosingSession) {
-                ClosingSession cs = (ClosingSession) sessionState;
-
-                cs.addCompletionListener(() -> future.complete(OpcUaClient.this));
-            } else {
-                future.complete(OpcUaClient.this);
-            }
-
-            return future;
-        });
+        return fsm.handleEvent(SessionStateEvent.DisconnectRequested)
+                .thenApply(sessionState -> OpcUaClient.this);
     }
 
     @Override
