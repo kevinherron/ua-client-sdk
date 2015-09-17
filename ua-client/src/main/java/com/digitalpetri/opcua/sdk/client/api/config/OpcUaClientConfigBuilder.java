@@ -33,6 +33,8 @@ import com.digitalpetri.opcua.stack.core.channel.ChannelConfig;
 import com.digitalpetri.opcua.stack.core.types.builtin.LocalizedText;
 import com.digitalpetri.opcua.stack.core.types.builtin.unsigned.UInteger;
 import com.digitalpetri.opcua.stack.core.types.structured.EndpointDescription;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.util.HashedWheelTimer;
 
 import static com.digitalpetri.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
 
@@ -127,6 +129,18 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
     @Override
     public OpcUaClientConfigBuilder setExecutor(ExecutorService executor) {
         super.setExecutor(executor);
+        return this;
+    }
+
+    @Override
+    public OpcUaClientConfigBuilder setEventLoop(NioEventLoopGroup eventLoop) {
+        super.setEventLoop(eventLoop);
+        return this;
+    }
+
+    @Override
+    public OpcUaClientConfigBuilder setWheelTimer(HashedWheelTimer wheelTimer) {
+        super.setWheelTimer(wheelTimer);
         return this;
     }
 
@@ -245,6 +259,16 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
         @Override
         public ExecutorService getExecutor() {
             return stackClientConfig.getExecutor();
+        }
+
+        @Override
+        public NioEventLoopGroup getEventLoop() {
+            return stackClientConfig.getEventLoop();
+        }
+
+        @Override
+        public HashedWheelTimer getWheelTimer() {
+            return stackClientConfig.getWheelTimer();
         }
 
     }
