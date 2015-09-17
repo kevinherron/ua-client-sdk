@@ -48,10 +48,12 @@ public class ClosingSession implements SessionState {
     }
 
     public void addCompletionListener(Runnable listener) {
+        logger.debug("Adding completion listener: {}", listener);
         listeners.add(listener);
     }
 
     public void removeCompletionListener(Runnable listener) {
+        logger.debug("Removing completion listener: {}", listener);
         listeners.remove(listener);
     }
 
@@ -87,7 +89,10 @@ public class ClosingSession implements SessionState {
 
     @Override
     public CompletableFuture<Void> deactivate(SessionStateEvent event, SessionStateFsm fsm) {
-        listeners.forEach(Runnable::run);
+        listeners.forEach(r -> {
+            logger.debug("Notifying completion listeners: {}", r);
+            r.run();
+        });
 
         return CF_VOID_COMPLETED;
     }
