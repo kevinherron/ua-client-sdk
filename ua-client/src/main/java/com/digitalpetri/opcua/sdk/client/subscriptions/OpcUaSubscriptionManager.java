@@ -130,7 +130,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
             subscriptions.put(subscription.getSubscriptionId(), subscription);
 
-            maybeSendPublishRequest();
+            maybeSendPublishRequests();
 
             return subscription;
         });
@@ -162,7 +162,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 subscription.getMaxNotificationsPerPublish(),
                 subscription.getPriority());
 
-        future.thenRun(this::maybeSendPublishRequest);
+        future.thenRun(this::maybeSendPublishRequests);
 
         return future;
     }
@@ -198,7 +198,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
             subscription.setMaxNotificationsPerPublish(maxNotificationsPerPublish);
             subscription.setPriority(priority);
 
-            maybeSendPublishRequest();
+            maybeSendPublishRequests();
 
             return subscription;
         });
@@ -211,7 +211,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         return client.deleteSubscriptions(subscriptionIds).thenApply(r -> {
             OpcUaSubscription subscription = subscriptions.remove(subscriptionId);
 
-            maybeSendPublishRequest();
+            maybeSendPublishRequests();
 
             return subscription;
         });
@@ -253,6 +253,12 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         long timeoutHint = (long) (getMaxPendingPublishes() * minKeepAlive * 1.25) * 2;
 
         return uint(timeoutHint);
+    }
+
+    private void maybeSendPublishRequests() {
+        for (int i = pendingPublishes.get(); i < getMaxPendingPublishes(); i++) {
+            maybeSendPublishRequest();
+        }
     }
 
     private void maybeSendPublishRequest() {
@@ -315,8 +321,6 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 }
 
             }, client.getConfig().getExecutor());
-
-            maybeSendPublishRequest();
         } else {
             pendingPublishes.decrementAndGet();
         }
@@ -483,7 +487,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     public void restartPublishing() {
-        maybeSendPublishRequest();
+        maybeSendPublishRequests();
     }
 
 }
