@@ -24,7 +24,9 @@ import com.digitalpetri.opcua.server.ctt.CttNamespace;
 import com.digitalpetri.opcua.stack.client.UaTcpStackClient;
 import com.digitalpetri.opcua.stack.core.AttributeId;
 import com.digitalpetri.opcua.stack.core.Identifiers;
+import com.digitalpetri.opcua.stack.core.StatusCodes;
 import com.digitalpetri.opcua.stack.core.UaException;
+import com.digitalpetri.opcua.stack.core.UaServiceFaultException;
 import com.digitalpetri.opcua.stack.core.security.SecurityPolicy;
 import com.digitalpetri.opcua.stack.core.types.builtin.DataValue;
 import com.digitalpetri.opcua.stack.core.types.builtin.DateTime;
@@ -146,7 +148,11 @@ public class OpcUaClientIT {
     public void stopClientAndServer() {
         logger.info("stopClientAndServer()");
 
-        client.disconnect();
+        try {
+            client.disconnect().get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.warn("Error disconnecting client.", e);
+        }
         server.shutdown();
         SocketServer.shutdownAll();
     }
@@ -405,6 +411,35 @@ public class OpcUaClientIT {
         for (Thread thread : threads) {
             thread.join();
         }
+    }
+
+    @Test
+    public void testReactivate() throws ExecutionException, InterruptedException {
+        logger.info("testReactivate()");
+
+        UaVariableNode currentTimeNode = client.getAddressSpace()
+                .getVariableNode(Identifiers.Server_ServerStatus_CurrentTime);
+
+        assertNotNull(currentTimeNode.readValueAttribute().get());
+
+        // Kill the session. Client can't and won't be notified of this.
+        UaSession session = client.getSession().get();
+        server.getSessionManager().killSession(session.getSessionId(), true);
+
+        // Expect the next action to fail because the session is no longer valid.
+        try {
+            currentTimeNode.readValueAttribute().get();
+        } catch (Throwable t) {
+            StatusCode statusCode = UaServiceFaultException.extract(t)
+                    .map(UaException::getStatusCode)
+                    .orElse(StatusCode.BAD);
+
+            assertEquals(statusCode.getValue(), StatusCodes.Bad_SessionIdInvalid);
+        }
+
+        // Force a reactivate and read.
+        client.connect().get();
+        assertNotNull(currentTimeNode.readValueAttribute().get());
     }
 
 }
