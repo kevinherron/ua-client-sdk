@@ -35,6 +35,7 @@ public enum SessionStateEvent {
     DisconnectRequested,
     DisconnectSucceeded,
 
+    ReactivateRequested,
     ReactivateSucceeded,
     ErrReactivateFailed,
     ErrReactivateInvalid,

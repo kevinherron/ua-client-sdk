@@ -54,26 +54,32 @@ public class ClosingSession implements SessionState {
         OpcUaClient client = fsm.getClient();
         UaTcpStackClient stackClient = client.getStackClient();
 
-        RequestHeader requestHeader = new RequestHeader(
-                session.getAuthenticationToken(),
-                DateTime.now(),
-                client.nextRequestHandle(),
-                uint(0),
-                null,
-                uint(5000),
-                null
-        );
+        SessionState state = fsm.getState();
 
-        CloseSessionRequest request = new CloseSessionRequest(requestHeader, true);
+        if (state instanceof Active) {
+            RequestHeader requestHeader = new RequestHeader(
+                    session.getAuthenticationToken(),
+                    DateTime.now(),
+                    client.nextRequestHandle(),
+                    uint(0),
+                    null,
+                    uint(5000),
+                    null
+            );
 
-        stackClient.sendRequest(request).whenComplete((r, t) -> {
-            if (r != null) {
-                logger.debug("Session closed.");
-            } else {
-                logger.debug("Error closing session: {}", t.getMessage(), t);
-            }
+            CloseSessionRequest request = new CloseSessionRequest(requestHeader, true);
+
+            stackClient.sendRequest(request).whenComplete((r, t) -> {
+                if (r != null) {
+                    logger.debug("Session closed.");
+                } else {
+                    logger.debug("Error closing session: {}", t.getMessage(), t);
+                }
+                disconnect(fsm, stackClient, f);
+            });
+        } else {
             disconnect(fsm, stackClient, f);
-        });
+        }
 
         return f;
     }

@@ -57,10 +57,16 @@ public class SessionStateFsm {
             logger.debug("semaphore acquired - handleEvent({})", event);
             CompletableFuture<SessionState> f = handleEvent0(event);
 
-            f.whenComplete((s, t) -> {
+            f.whenCompleteAsync((s, t) -> {
+                SessionState p = state.getAndSet(s);
+
+                maybeNotifyListeners(p, s, event);
+
                 future.complete(s);
                 permit.release();
-            });
+
+                logger.debug("semaphore released - handleEvent({})", event);
+            }, client.getConfig().getExecutor());
         });
 
         return future;
@@ -83,15 +89,7 @@ public class SessionStateFsm {
             }).thenApply(vd -> {
                 logger.debug("activated S({})", nextState);
 
-                state.set(nextState);
-
                 return nextState;
-            }).thenApply(ns -> {
-                logger.debug("notifying SessionStateListeners...");
-
-                maybeNotifyListeners(currState, nextState, event);
-
-                return ns;
             });
         } else {
             return CompletableFuture.completedFuture(currState);
@@ -103,15 +101,21 @@ public class SessionStateFsm {
                 .thenCompose(SessionState::getSessionFuture);
     }
 
+    public synchronized SessionState getState() {
+        return state.get();
+    }
+
     public OpcUaClient getClient() {
         return client;
     }
 
     private void maybeNotifyListeners(SessionState prevState, SessionState nextState, SessionStateEvent event) {
         if (isNotActive(prevState) && isActive(nextState)) {
+            logger.debug("notifying SessionStateListeners state is active...");
             listeners.forEach(l -> l.onSessionActive(event));
         }
         if (isActive(prevState) && isNotActive(nextState)) {
+            logger.debug("notifying SessionStateListeners state is not active...");
             listeners.forEach(l -> l.onSessionInactive(event));
         }
     }

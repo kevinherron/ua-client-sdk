@@ -71,6 +71,7 @@ public class Active implements SessionState {
             channelInboundHandlerAdapter = new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                    logger.warn("Channel went inactive: {}", ctx.channel());
                     fsm.handleEvent(SessionStateEvent.ErrConnectionLost);
                 }
             };
@@ -105,7 +106,7 @@ public class Active implements SessionState {
                 return new ClosingSession(session);
 
             case ErrConnectionLost:
-                return new Reactivating(session, 0);
+                return new ReactivateDelay(session, 0);
 
             case ErrSessionInvalid:
                 return new CreatingSession(new CompletableFuture<>());
