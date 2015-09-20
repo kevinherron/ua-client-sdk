@@ -24,6 +24,7 @@ import java.util.function.Supplier;
 import com.digitalpetri.opcua.sdk.client.api.identity.IdentityProvider;
 import com.digitalpetri.opcua.stack.client.config.UaTcpStackClientConfig;
 import com.digitalpetri.opcua.stack.core.types.builtin.unsigned.UInteger;
+import com.digitalpetri.opcua.stack.core.types.structured.PublishRequest;
 
 public interface OpcUaClientConfig extends UaTcpStackClientConfig {
 
@@ -46,6 +47,11 @@ public interface OpcUaClientConfig extends UaTcpStackClientConfig {
      * @return the maximum size for a response from the server.
      */
     UInteger getMaxResponseMessageSize();
+
+    /**
+     * @return the maximum number of outstanding {@link PublishRequest}s allowed at any given time.
+     */
+    UInteger getMaxPendingPublishRequests();
 
     /**
      * @return an {@link IdentityProvider} to use when activating a session.

@@ -25,7 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.digitalpetri.opcua.sdk.client.OpcUaClient;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaSubscription;
@@ -71,7 +71,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
     private final List<SubscriptionListener> subscriptionListeners = Lists.newCopyOnWriteArrayList();
 
-    private final AtomicInteger pendingPublishes = new AtomicInteger(0);
+    private final AtomicLong pendingPublishes = new AtomicLong(0L);
 
     private final List<SubscriptionAcknowledgement> acknowledgements = newArrayList();
 
@@ -240,8 +240,10 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         subscriptionListeners.remove(listener);
     }
 
-    private int getMaxPendingPublishes() {
-        return subscriptions.size() * 2;
+    private long getMaxPendingPublishes() {
+        long maxPendingPublishRequests = client.getConfig().getMaxPendingPublishRequests().longValue();
+
+        return Math.min(subscriptions.size() * 2, maxPendingPublishRequests);
     }
 
     private UInteger getTimeoutHint() {
@@ -256,7 +258,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     private void maybeSendPublishRequests() {
-        for (int i = pendingPublishes.get(); i < getMaxPendingPublishes(); i++) {
+        for (long i = pendingPublishes.get(); i < getMaxPendingPublishes(); i++) {
             maybeSendPublishRequest();
         }
     }

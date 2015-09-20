@@ -45,6 +45,7 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
     private UInteger sessionTimeout = uint(120000);
     private UInteger maxResponseMessageSize = uint(0);
     private UInteger requestTimeout = uint(60000);
+    private UInteger maxPendingPublishRequests = uint(UInteger.MAX_VALUE);
     private IdentityProvider identityProvider = new AnonymousProvider();
 
     public OpcUaClientConfigBuilder setSessionName(Supplier<String> sessionName) {
@@ -59,6 +60,11 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
 
     public OpcUaClientConfigBuilder setMaxResponseMessageSize(UInteger maxResponseMessageSize) {
         this.maxResponseMessageSize = maxResponseMessageSize;
+        return this;
+    }
+
+    public OpcUaClientConfigBuilder setMaxPendingPublishRequests(UInteger maxPendingPublishRequests) {
+        this.maxPendingPublishRequests = maxPendingPublishRequests;
         return this;
     }
 
@@ -158,6 +164,7 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
                 sessionName,
                 sessionTimeout,
                 maxResponseMessageSize,
+                maxPendingPublishRequests,
                 requestTimeout,
                 identityProvider);
     }
@@ -168,6 +175,7 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
         private final Supplier<String> sessionName;
         private final UInteger sessionTimeout;
         private final UInteger maxResponseMessageSize;
+        private final UInteger maxPendingPublishRequests;
         private final UInteger requestTimeout;
         private final IdentityProvider identityProvider;
 
@@ -175,6 +183,7 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
                                      Supplier<String> sessionName,
                                      UInteger sessionTimeout,
                                      UInteger maxResponseMessageSize,
+                                     UInteger maxPendingPublishRequests,
                                      UInteger requestTimeout,
                                      IdentityProvider identityProvider) {
 
@@ -182,6 +191,7 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
             this.sessionName = sessionName;
             this.sessionTimeout = sessionTimeout;
             this.maxResponseMessageSize = maxResponseMessageSize;
+            this.maxPendingPublishRequests = maxPendingPublishRequests;
             this.requestTimeout = requestTimeout;
             this.identityProvider = identityProvider;
         }
@@ -199,6 +209,11 @@ public class OpcUaClientConfigBuilder extends UaTcpStackClientConfigBuilder {
         @Override
         public UInteger getMaxResponseMessageSize() {
             return maxResponseMessageSize;
+        }
+
+        @Override
+        public UInteger getMaxPendingPublishRequests() {
+            return maxPendingPublishRequests;
         }
 
         @Override

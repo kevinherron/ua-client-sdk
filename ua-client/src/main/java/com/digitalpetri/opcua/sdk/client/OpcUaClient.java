@@ -31,7 +31,6 @@ import com.digitalpetri.opcua.sdk.client.api.nodes.NodeCache;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
 import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm.SessionStateListener;
-import com.digitalpetri.opcua.sdk.client.fsm.states.ClosingSession;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultAddressSpace;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultNodeCache;
 import com.digitalpetri.opcua.sdk.client.subscriptions.OpcUaSubscriptionManager;
