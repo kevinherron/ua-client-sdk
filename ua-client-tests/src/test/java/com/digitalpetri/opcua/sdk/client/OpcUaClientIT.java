@@ -224,7 +224,7 @@ public class OpcUaClientIT {
         assertNotNull(f.get(5, TimeUnit.SECONDS));
     }
 
-    @Test
+    @Test(enabled = false)
     public void testTransferSubscriptions() throws Exception {
         logger.info("testTransferSubscriptions()");
 
