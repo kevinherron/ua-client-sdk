@@ -89,6 +89,13 @@ public class TransferringSubscriptions implements SessionState {
                             statusCode.getValue() == StatusCodes.Bad_NotSupported ||
                             statusCode.getValue() == StatusCodes.Bad_OutOfService) {
 
+                        // transferFailed() will remove the subscription, but that is okay
+                        // because the list from getSubscriptions() above is a copy.
+                        for (UaSubscription subscription : subscriptions) {
+                            subscriptionManager.transferFailed(
+                                    subscription.getSubscriptionId(), statusCode);
+                        }
+
                         fsm.handleEvent(SessionStateEvent.ErrTransferUnsupported);
                     } else {
                         fsm.handleEvent(SessionStateEvent.ErrTransferFailed);
