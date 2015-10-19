@@ -196,8 +196,7 @@ public class ReactivateExecute implements SessionState {
 
     @Override
     public CompletableFuture<UaSession> getSessionFuture() {
-        return null;
+        return sessionFuture;
     }
-
 
 }
