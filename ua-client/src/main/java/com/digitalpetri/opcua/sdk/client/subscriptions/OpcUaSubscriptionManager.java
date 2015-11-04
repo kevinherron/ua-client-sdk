@@ -257,7 +257,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         return uint(timeoutHint);
     }
 
-    private void maybeSendPublishRequests() {
+    private synchronized void maybeSendPublishRequests() {
         for (long i = pendingPublishes.get(); i < getMaxPendingPublishes(); i++) {
             maybeSendPublishRequest();
         }
@@ -290,7 +290,10 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
                 return client.<PublishResponse>sendRequest(request);
             }).whenCompleteAsync((response, ex) -> {
-                pendingPublishes.decrementAndGet();
+                pendingPublishes.getAndUpdate(p -> {
+                    if (p > 0) return p - 1;
+                    else return 0;
+                });
 
                 if (ex != null) {
                     StatusCode statusCode = UaException.extract(ex)
@@ -324,7 +327,10 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
             }, client.getConfig().getExecutor());
         } else {
-            pendingPublishes.decrementAndGet();
+            pendingPublishes.getAndUpdate(p -> {
+                if (p > 0) return p - 1;
+                else return 0;
+            });
         }
     }
 
@@ -484,12 +490,21 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 logger.debug("StatusChangeNotification: {}", scn.getStatus());
 
                 subscriptionListeners.forEach(l -> l.onStatusChanged(subscription, scn.getStatus()));
+
+                if (scn.getStatus().getValue() == StatusCodes.Bad_Timeout) {
+                    subscriptions.remove(subscriptionId);
+                    maybeSendPublishRequests();
+                }
             }
         }
     }
 
     public void restartPublishing() {
         maybeSendPublishRequests();
+    }
+
+    public void clear() {
+        subscriptions.clear();
     }
 
 }
