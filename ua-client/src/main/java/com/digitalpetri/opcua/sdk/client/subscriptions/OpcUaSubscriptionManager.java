@@ -503,15 +503,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     public void restartPublishing() {
-        // Force new PublishRequests to go out, possibly causing the pending count
-        // to exceed max temporarily. This is necessary because upon reconnecting
-        // and reactivating a session it's likely that any previously pending
-        // PublishRequests will never receive PublishResponses, and until they timeout,
-        // no new PublishRequests will be sent.
-
-        for (long i = 0; i < getMaxPendingPublishes(); i++) {
-            sendPublishRequest();
-        }
+        maybeSendPublishRequests();
     }
 
     public void clear() {
