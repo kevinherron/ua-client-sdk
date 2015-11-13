@@ -152,7 +152,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         UInteger requestedMaxKeepAliveCount = uint(Math.max(1, (int) Math.ceil(10000.0 / requestedPublishingInterval)));
 
         // Lifetime must be 3x (or greater) the keep-alive count.
-        UInteger requestedLifetimeCount = uint(requestedMaxKeepAliveCount.intValue() * 3);
+        UInteger requestedLifetimeCount = uint(requestedMaxKeepAliveCount.intValue() * 6);
 
         CompletableFuture<UaSubscription> future = modifySubscription(
                 subscriptionId,
