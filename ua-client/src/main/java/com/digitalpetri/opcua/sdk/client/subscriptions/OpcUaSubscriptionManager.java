@@ -265,73 +265,76 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
     private void maybeSendPublishRequest() {
         if (pendingPublishes.incrementAndGet() <= getMaxPendingPublishes()) {
-            SubscriptionAcknowledgement[] subscriptionAcknowledgements;
-
-            synchronized (acknowledgements) {
-                subscriptionAcknowledgements = acknowledgements.toArray(
-                        new SubscriptionAcknowledgement[acknowledgements.size()]);
-
-                acknowledgements.clear();
-            }
-
-            client.getSession().thenCompose(session -> {
-                RequestHeader requestHeader = new RequestHeader(
-                        session.getAuthenticationToken(),
-                        DateTime.now(),
-                        client.nextRequestHandle(),
-                        uint(0),
-                        null,
-                        getTimeoutHint(),
-                        null);
-
-                PublishRequest request = new PublishRequest(
-                        requestHeader,
-                        subscriptionAcknowledgements);
-
-                return client.<PublishResponse>sendRequest(request);
-            }).whenCompleteAsync((response, ex) -> {
-                pendingPublishes.getAndUpdate(p -> {
-                    if (p > 0) return p - 1;
-                    else return 0;
-                });
-
-                if (ex != null) {
-                    StatusCode statusCode = UaException.extract(ex)
-                            .map(UaException::getStatusCode)
-                            .orElse(StatusCode.BAD);
-
-                    logger.debug("Publish service failure: {}", statusCode, ex);
-
-                    if (statusCode.getValue() != StatusCodes.Bad_NoSubscription &&
-                            statusCode.getValue() != StatusCodes.Bad_TooManyPublishRequests &&
-                            statusCode.getValue() != StatusCodes.Bad_SessionIdInvalid &&
-                            statusCode.getValue() != StatusCodes.Bad_SessionClosed) {
-
-                        maybeSendPublishRequest();
-                    }
-
-                    synchronized (acknowledgements) {
-                        Collections.addAll(acknowledgements, subscriptionAcknowledgements);
-                    }
-
-                    UaException uax = UaException.extract(ex).orElse(new UaException(ex));
-                    subscriptionListeners.forEach(l -> l.onPublishFailure(uax));
-                } else {
-                    logger.debug("Received PublishResponse, sequenceNumber={}",
-                            response.getNotificationMessage().getSequenceNumber());
-
-                    processingQueue.submit(() -> onPublishComplete(response));
-
-                    maybeSendPublishRequest();
-                }
-
-            }, client.getConfig().getExecutor());
+            sendPublishRequest();
         } else {
             pendingPublishes.getAndUpdate(p -> {
                 if (p > 0) return p - 1;
                 else return 0;
             });
         }
+    }
+
+    private void sendPublishRequest() {
+        SubscriptionAcknowledgement[] subscriptionAcknowledgements;
+
+        synchronized (acknowledgements) {
+            subscriptionAcknowledgements = acknowledgements.toArray(
+                    new SubscriptionAcknowledgement[acknowledgements.size()]);
+
+            acknowledgements.clear();
+        }
+
+        client.getSession().thenCompose(session -> {
+            RequestHeader requestHeader = new RequestHeader(
+                    session.getAuthenticationToken(),
+                    DateTime.now(),
+                    client.nextRequestHandle(),
+                    uint(0),
+                    null,
+                    getTimeoutHint(),
+                    null);
+
+            PublishRequest request = new PublishRequest(
+                    requestHeader,
+                    subscriptionAcknowledgements);
+
+            return client.<PublishResponse>sendRequest(request);
+        }).whenCompleteAsync((response, ex) -> {
+            pendingPublishes.getAndUpdate(p -> {
+                if (p > 0) return p - 1;
+                else return 0;
+            });
+
+            if (ex != null) {
+                StatusCode statusCode = UaException.extract(ex)
+                        .map(UaException::getStatusCode)
+                        .orElse(StatusCode.BAD);
+
+                logger.debug("Publish service failure: {}", statusCode, ex);
+
+                if (statusCode.getValue() != StatusCodes.Bad_NoSubscription &&
+                        statusCode.getValue() != StatusCodes.Bad_TooManyPublishRequests &&
+                        statusCode.getValue() != StatusCodes.Bad_SessionIdInvalid &&
+                        statusCode.getValue() != StatusCodes.Bad_SessionClosed) {
+
+                    maybeSendPublishRequest();
+                }
+
+                synchronized (acknowledgements) {
+                    Collections.addAll(acknowledgements, subscriptionAcknowledgements);
+                }
+
+                UaException uax = UaException.extract(ex).orElse(new UaException(ex));
+                subscriptionListeners.forEach(l -> l.onPublishFailure(uax));
+            } else {
+                logger.debug("Received PublishResponse, sequenceNumber={}",
+                        response.getNotificationMessage().getSequenceNumber());
+
+                processingQueue.submit(() -> onPublishComplete(response));
+
+                maybeSendPublishRequest();
+            }
+        }, client.getConfig().getExecutor());
     }
 
     private void onPublishComplete(PublishResponse response) {
@@ -500,7 +503,15 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     public void restartPublishing() {
-        maybeSendPublishRequests();
+        // Force new PublishRequests to go out, possibly causing the pending count
+        // to exceed max temporarily. This is necessary because upon reconnecting
+        // and reactivating a session it's likely that any previously pending
+        // PublishRequests will never receive PublishResponses, and until they timeout,
+        // no new PublishRequests will be sent.
+
+        for (long i = 0; i < getMaxPendingPublishes(); i++) {
+            sendPublishRequest();
+        }
     }
 
     public void clear() {
