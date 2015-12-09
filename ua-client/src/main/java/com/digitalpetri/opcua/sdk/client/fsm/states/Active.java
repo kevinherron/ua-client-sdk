@@ -79,7 +79,8 @@ public class Active implements SessionState {
             channel.pipeline().addLast(channelInboundHandlerAdapter);
         });
 
-        client.getSubscriptionManager().restartPublishing();
+        boolean resetPublishCount = event == SessionStateEvent.ActivateSucceeded;
+        client.getSubscriptionManager().startPublishing(resetPublishCount);
 
         future.complete(session);
 

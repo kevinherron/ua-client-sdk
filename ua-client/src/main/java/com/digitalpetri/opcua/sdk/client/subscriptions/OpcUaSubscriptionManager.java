@@ -71,7 +71,8 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
     private final List<SubscriptionListener> subscriptionListeners = Lists.newCopyOnWriteArrayList();
 
-    private final AtomicLong pendingPublishes = new AtomicLong(0L);
+    private final AtomicLong pendingPublishCount = new AtomicLong(0L);
+    private final Map<UInteger, PublishRequest> pending = Maps.newConcurrentMap();
 
     private final List<SubscriptionAcknowledgement> acknowledgements = newArrayList();
 
@@ -258,16 +259,16 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     private synchronized void maybeSendPublishRequests() {
-        for (long i = pendingPublishes.get(); i < getMaxPendingPublishes(); i++) {
+        for (long i = pendingPublishCount.get(); i < getMaxPendingPublishes(); i++) {
             maybeSendPublishRequest();
         }
     }
 
     private void maybeSendPublishRequest() {
-        if (pendingPublishes.incrementAndGet() <= getMaxPendingPublishes()) {
+        if (pendingPublishCount.incrementAndGet() <= getMaxPendingPublishes()) {
             sendPublishRequest();
         } else {
-            pendingPublishes.getAndUpdate(p -> {
+            pendingPublishCount.getAndUpdate(p -> {
                 if (p > 0) return p - 1;
                 else return 0;
             });
@@ -298,9 +299,18 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                     requestHeader,
                     subscriptionAcknowledgements);
 
+            pending.put(request.getRequestHeader().getRequestHandle(), request);
+
             return client.<PublishResponse>sendRequest(request);
         }).whenCompleteAsync((response, ex) -> {
-            pendingPublishes.getAndUpdate(p -> {
+            if (pending.remove(response.getResponseHeader().getRequestHandle()) == null) {
+                // The pending map gets cleared when a new session is activated; don't let
+                // requests from an old session, whether success or failure, influence the
+                // current state.
+                return;
+            }
+
+            pendingPublishCount.getAndUpdate(p -> {
                 if (p > 0) return p - 1;
                 else return 0;
             });
@@ -502,7 +512,11 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         }
     }
 
-    public void restartPublishing() {
+    public void startPublishing(boolean resetPublishCount) {
+        if (resetPublishCount) {
+            pendingPublishCount.set(0);
+            pending.clear();
+        }
         maybeSendPublishRequests();
     }
 
