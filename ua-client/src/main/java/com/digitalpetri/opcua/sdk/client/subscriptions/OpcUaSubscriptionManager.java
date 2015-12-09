@@ -253,7 +253,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 .min(Comparator.<Double>naturalOrder())
                 .orElse(client.getConfig().getRequestTimeout().doubleValue());
 
-        long timeoutHint = (long) (getMaxPendingPublishes() * minKeepAlive * 1.25) * 2;
+        long timeoutHint = (long) (getMaxPendingPublishes() * minKeepAlive * 1.25);
 
         return uint(timeoutHint);
     }
@@ -285,11 +285,13 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
             acknowledgements.clear();
         }
 
+        final UInteger requestHandle = client.nextRequestHandle();
+
         client.getSession().thenCompose(session -> {
             RequestHeader requestHeader = new RequestHeader(
                     session.getAuthenticationToken(),
                     DateTime.now(),
-                    client.nextRequestHandle(),
+                    requestHandle,
                     uint(0),
                     null,
                     getTimeoutHint(),
@@ -301,12 +303,19 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
             pending.put(request.getRequestHeader().getRequestHandle(), request);
 
+            logger.debug("Sending PublishRequest, requestHandle={}", requestHandle);
+
             return client.<PublishResponse>sendRequest(request);
         }).whenCompleteAsync((response, ex) -> {
-            if (pending.remove(response.getResponseHeader().getRequestHandle()) == null) {
+            if (pending.remove(requestHandle) == null) {
                 // The pending map gets cleared when a new session is activated; don't let
                 // requests from an old session, whether success or failure, influence the
                 // current state.
+                if (response != null) {
+                    logger.debug("Received PublishResponse for previous session, requestHandle={}", requestHandle);
+                } else {
+                    logger.debug("PublishResponse for previous session timed out, requestHandle={}", requestHandle);
+                }
                 return;
             }
 
@@ -322,11 +331,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
                 logger.debug("Publish service failure: {}", statusCode, ex);
 
-                if (statusCode.getValue() != StatusCodes.Bad_NoSubscription &&
-                        statusCode.getValue() != StatusCodes.Bad_TooManyPublishRequests &&
-                        statusCode.getValue() != StatusCodes.Bad_SessionIdInvalid &&
-                        statusCode.getValue() != StatusCodes.Bad_SessionClosed) {
-
+                if (statusCode.getValue() != StatusCodes.Bad_TooManyPublishRequests) {
                     maybeSendPublishRequest();
                 }
 
@@ -513,10 +518,15 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     public void startPublishing(boolean resetPublishCount) {
+        logger.debug(
+                "startPublishing(), resetPublishCount={}, pendingPublishCount={}",
+                resetPublishCount, pendingPublishCount.get());
+
         if (resetPublishCount) {
             pendingPublishCount.set(0);
             pending.clear();
         }
+
         maybeSendPublishRequests();
     }
 
