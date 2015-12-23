@@ -81,7 +81,8 @@ public class Active implements SessionState {
 
         boolean resetPublishCount =
                 event == SessionStateEvent.ActivateSucceeded ||
-                        event == SessionStateEvent.TransferSucceeded;
+                        event == SessionStateEvent.TransferSucceeded ||
+                        event == SessionStateEvent.ErrTransferUnsupported;
 
         client.getSubscriptionManager().startPublishing(resetPublishCount);
 
