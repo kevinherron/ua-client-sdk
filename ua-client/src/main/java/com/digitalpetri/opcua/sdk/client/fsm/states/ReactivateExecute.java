@@ -77,6 +77,8 @@ public class ReactivateExecute implements SessionState {
                         .map(UaException::getStatusCode)
                         .orElse(StatusCode.BAD);
 
+                logger.debug("Reactivation failed: {}", statusCode);
+
                 if (statusCode.getValue() == StatusCodes.Bad_SessionIdInvalid ||
                         statusCode.getValue() == StatusCodes.Bad_SessionClosed ||
                         statusCode.getValue() == StatusCodes.Bad_SessionNotActivated ||
