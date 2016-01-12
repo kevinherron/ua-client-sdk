@@ -17,7 +17,7 @@ Release versions are available from Maven Central:
 <dependency>
     <groupId>com.digitalpetri.opcua</groupId>
     <artifactId>ua-client</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
 </dependency>
 ```
 
