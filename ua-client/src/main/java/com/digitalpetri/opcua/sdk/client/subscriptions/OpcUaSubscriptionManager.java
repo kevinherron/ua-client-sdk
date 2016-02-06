@@ -25,15 +25,18 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.digitalpetri.opcua.sdk.client.OpcUaClient;
+import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaSubscription;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaSubscriptionManager;
 import com.digitalpetri.opcua.stack.core.StatusCodes;
 import com.digitalpetri.opcua.stack.core.UaException;
 import com.digitalpetri.opcua.stack.core.types.builtin.DateTime;
 import com.digitalpetri.opcua.stack.core.types.builtin.ExtensionObject;
+import com.digitalpetri.opcua.stack.core.types.builtin.NodeId;
 import com.digitalpetri.opcua.stack.core.types.builtin.StatusCode;
 import com.digitalpetri.opcua.stack.core.types.builtin.unsigned.UByte;
 import com.digitalpetri.opcua.stack.core.types.builtin.unsigned.UInteger;
@@ -71,8 +74,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
     private final List<SubscriptionListener> subscriptionListeners = Lists.newCopyOnWriteArrayList();
 
-    private final AtomicLong pendingPublishCount = new AtomicLong(0L);
-    private final Map<UInteger, PublishRequest> pending = Maps.newConcurrentMap();
+    private final ConcurrentMap<NodeId, AtomicLong> pendingCountMap = Maps.newConcurrentMap();
 
     private final List<SubscriptionAcknowledgement> acknowledgements = newArrayList();
 
@@ -101,23 +103,26 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 maxLifetimeCount,
                 maxKeepAliveCount,
                 DEFAULT_MAX_NOTIFICATIONS_PER_PUBLISH,
-                true, ubyte(0));
+                true, ubyte(0)
+        );
     }
 
     @Override
-    public CompletableFuture<UaSubscription> createSubscription(double requestedPublishingInterval,
-                                                                UInteger requestedLifetimeCount,
-                                                                UInteger requestedMaxKeepAliveCount,
-                                                                UInteger maxNotificationsPerPublish,
-                                                                boolean publishingEnabled,
-                                                                UByte priority) {
+    public CompletableFuture<UaSubscription> createSubscription(
+            double requestedPublishingInterval,
+            UInteger requestedLifetimeCount,
+            UInteger requestedMaxKeepAliveCount,
+            UInteger maxNotificationsPerPublish,
+            boolean publishingEnabled,
+            UByte priority) {
 
         CompletableFuture<CreateSubscriptionResponse> future = client.createSubscription(
                 requestedPublishingInterval,
                 requestedLifetimeCount,
                 requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish,
-                publishingEnabled, priority);
+                publishingEnabled, priority
+        );
 
         return future.thenApply(response -> {
             OpcUaSubscription subscription = new OpcUaSubscription(
@@ -138,8 +143,9 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     @Override
-    public CompletableFuture<UaSubscription> modifySubscription(UInteger subscriptionId,
-                                                                double requestedPublishingInterval) {
+    public CompletableFuture<UaSubscription> modifySubscription(
+            UInteger subscriptionId,
+            double requestedPublishingInterval) {
 
         OpcUaSubscription subscription = subscriptions.get(subscriptionId);
 
@@ -161,7 +167,8 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 requestedLifetimeCount,
                 requestedMaxKeepAliveCount,
                 subscription.getMaxNotificationsPerPublish(),
-                subscription.getPriority());
+                subscription.getPriority()
+        );
 
         future.thenRun(this::maybeSendPublishRequests);
 
@@ -169,12 +176,13 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     @Override
-    public CompletableFuture<UaSubscription> modifySubscription(UInteger subscriptionId,
-                                                                double requestedPublishingInterval,
-                                                                UInteger requestedLifetimeCount,
-                                                                UInteger requestedMaxKeepAliveCount,
-                                                                UInteger maxNotificationsPerPublish,
-                                                                UByte priority) {
+    public CompletableFuture<UaSubscription> modifySubscription(
+            UInteger subscriptionId,
+            double requestedPublishingInterval,
+            UInteger requestedLifetimeCount,
+            UInteger requestedMaxKeepAliveCount,
+            UInteger maxNotificationsPerPublish,
+            UByte priority) {
 
         OpcUaSubscription subscription = subscriptions.get(subscriptionId);
 
@@ -190,7 +198,8 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 requestedLifetimeCount,
                 requestedMaxKeepAliveCount,
                 maxNotificationsPerPublish,
-                priority);
+                priority
+        );
 
         return future.thenApply(response -> {
             subscription.setRevisedPublishingInterval(response.getRevisedPublishingInterval());
@@ -258,24 +267,28 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         return uint(timeoutHint);
     }
 
-    private synchronized void maybeSendPublishRequests() {
-        for (long i = pendingPublishCount.get(); i < getMaxPendingPublishes(); i++) {
-            maybeSendPublishRequest();
-        }
+    private void maybeSendPublishRequests() {
+        client.getSession().thenAccept(session -> {
+            AtomicLong pendingCount = pendingCountMap.computeIfAbsent(
+                    session.getSessionId(), id -> new AtomicLong(0L));
+
+            for (long i = pendingCount.get(); i < getMaxPendingPublishes(); i++) {
+                if (pendingCount.incrementAndGet() <= getMaxPendingPublishes()) {
+                    sendPublishRequest(session, pendingCount);
+                } else {
+                    pendingCount.getAndUpdate(p -> (p > 0) ? p - 1 : 0);
+                }
+            }
+
+            if (pendingCountMap.size() > 1) {
+                // Prune any old sessions...
+                pendingCountMap.entrySet().removeIf(e ->
+                        !e.getKey().equals(session.getSessionId()));
+            }
+        });
     }
 
-    private void maybeSendPublishRequest() {
-        if (pendingPublishCount.incrementAndGet() <= getMaxPendingPublishes()) {
-            sendPublishRequest();
-        } else {
-            pendingPublishCount.getAndUpdate(p -> {
-                if (p > 0) return p - 1;
-                else return 0;
-            });
-        }
-    }
-
-    private void sendPublishRequest() {
+    private void sendPublishRequest(UaSession session, AtomicLong pendingCount) {
         SubscriptionAcknowledgement[] subscriptionAcknowledgements;
 
         synchronized (acknowledgements) {
@@ -287,44 +300,35 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
         final UInteger requestHandle = client.nextRequestHandle();
 
-        client.getSession().thenCompose(session -> {
-            RequestHeader requestHeader = new RequestHeader(
-                    session.getAuthenticationToken(),
-                    DateTime.now(),
-                    requestHandle,
-                    uint(0),
-                    null,
-                    getTimeoutHint(),
-                    null);
+        RequestHeader requestHeader = new RequestHeader(
+                session.getAuthenticationToken(),
+                DateTime.now(),
+                requestHandle,
+                uint(0),
+                null,
+                getTimeoutHint(),
+                null
+        );
 
-            PublishRequest request = new PublishRequest(
-                    requestHeader,
-                    subscriptionAcknowledgements);
+        PublishRequest request = new PublishRequest(
+                requestHeader,
+                subscriptionAcknowledgements
+        );
 
-            pending.put(request.getRequestHeader().getRequestHandle(), request);
+        logger.debug("Sending PublishRequest, requestHandle={}", requestHandle);
 
-            logger.debug("Sending PublishRequest, requestHandle={}", requestHandle);
+        client.<PublishResponse>sendRequest(request).whenCompleteAsync((response, ex) -> {
 
-            return client.<PublishResponse>sendRequest(request);
-        }).whenCompleteAsync((response, ex) -> {
-            if (pending.remove(requestHandle) == null) {
-                // The pending map gets cleared when a new session is activated; don't let
-                // requests from an old session, whether success or failure, influence the
-                // current state.
-                if (response != null) {
-                    logger.debug("Received PublishResponse for previous session, requestHandle={}", requestHandle);
-                } else {
-                    logger.debug("PublishResponse for previous session timed out, requestHandle={}", requestHandle);
-                }
-                return;
-            }
+            pendingCount.getAndUpdate(p -> (p > 0) ? p - 1 : 0);
 
-            pendingPublishCount.getAndUpdate(p -> {
-                if (p > 0) return p - 1;
-                else return 0;
-            });
+            if (response != null) {
+                logger.debug("Received PublishResponse, sequenceNumber={}",
+                        response.getNotificationMessage().getSequenceNumber());
 
-            if (ex != null) {
+                processingQueue.submit(() -> onPublishComplete(response));
+
+                maybeSendPublishRequests();
+            } else {
                 StatusCode statusCode = UaException.extract(ex)
                         .map(UaException::getStatusCode)
                         .orElse(StatusCode.BAD);
@@ -332,7 +336,7 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 logger.debug("Publish service failure: {}", statusCode, ex);
 
                 if (statusCode.getValue() != StatusCodes.Bad_TooManyPublishRequests) {
-                    maybeSendPublishRequest();
+                    maybeSendPublishRequests();
                 }
 
                 synchronized (acknowledgements) {
@@ -341,13 +345,6 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
                 UaException uax = UaException.extract(ex).orElse(new UaException(ex));
                 subscriptionListeners.forEach(l -> l.onPublishFailure(uax));
-            } else {
-                logger.debug("Received PublishResponse, sequenceNumber={}",
-                        response.getNotificationMessage().getSequenceNumber());
-
-                processingQueue.submit(() -> onPublishComplete(response));
-
-                maybeSendPublishRequest();
             }
         }, client.getConfig().getExecutor());
     }
@@ -392,8 +389,6 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         }
 
         subscription.setLastSequenceNumber(sequenceNumber);
-
-        response.getResults(); // TODO
 
         synchronized (acknowledgements) {
             for (UInteger available : response.getAvailableSequenceNumbers()) {
@@ -517,20 +512,11 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         }
     }
 
-    public void startPublishing(boolean resetPublishCount) {
-        logger.debug(
-                "startPublishing(), resetPublishCount={}, pendingPublishCount={}",
-                resetPublishCount, pendingPublishCount.get());
-
-        if (resetPublishCount) {
-            pendingPublishCount.set(0);
-            pending.clear();
-        }
-
+    public void startPublishing() {
         maybeSendPublishRequests();
     }
 
-    public void clear() {
+    public void clearSubscriptions() {
         subscriptions.clear();
     }
 

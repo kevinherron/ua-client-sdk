@@ -59,7 +59,7 @@ public class Active implements SessionState {
         client.addFaultListener(faultListener = serviceFault -> {
             long statusCode = serviceFault.getResponseHeader().getServiceResult().getValue();
 
-            if (statusCode == StatusCodes.Bad_SessionIdInvalid) {
+            if (statusCode == StatusCodes.Bad_SessionIdInvalid || statusCode == StatusCodes.Bad_SessionClosed) {
                 logger.warn("ServiceFault: {}", serviceFault.getResponseHeader().getServiceResult());
                 fsm.handleEvent(SessionStateEvent.ErrSessionInvalid);
             }
@@ -79,12 +79,7 @@ public class Active implements SessionState {
             channel.pipeline().addLast(channelInboundHandlerAdapter);
         });
 
-        boolean resetPublishCount =
-                event == SessionStateEvent.ActivateSucceeded ||
-                        event == SessionStateEvent.TransferSucceeded ||
-                        event == SessionStateEvent.ErrTransferUnsupported;
-
-        client.getSubscriptionManager().startPublishing(resetPublishCount);
+        client.getSubscriptionManager().startPublishing();
 
         future.complete(session);
 

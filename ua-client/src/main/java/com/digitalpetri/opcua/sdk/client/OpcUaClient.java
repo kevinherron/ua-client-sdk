@@ -205,7 +205,7 @@ public class OpcUaClient implements UaClient {
     @Override
     public CompletableFuture<UaClient> disconnect() {
         return fsm.handleEvent(SessionStateEvent.DisconnectRequested)
-                .thenRun(subscriptionManager::clear)
+                .thenRun(subscriptionManager::clearSubscriptions)
                 .thenApply(vd -> OpcUaClient.this);
     }
 
