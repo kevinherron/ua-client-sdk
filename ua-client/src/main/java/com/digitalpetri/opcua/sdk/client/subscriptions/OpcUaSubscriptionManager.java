@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.digitalpetri.opcua.sdk.client.OpcUaClient;
+import com.digitalpetri.opcua.sdk.client.SessionActivityListener;
 import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaSubscription;
 import com.digitalpetri.opcua.sdk.client.api.subscriptions.UaSubscriptionManager;
@@ -88,6 +89,16 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
 
         deliveryQueue = new ExecutionQueue(client.getConfig().getExecutor());
         processingQueue = new ExecutionQueue(client.getConfig().getExecutor());
+
+        client.addSessionActivityListener(new SessionActivityListener() {
+            @Override
+            public void onSessionInactive(UaSession session) {
+                // This allows a session that gets re-activated to immediately start
+                // publishing again instead of waiting for outstanding PublishRequests
+                // from before the re-activation to expire/timeout.
+                pendingCountMap.replace(session.getSessionId(), new AtomicLong(0));
+            }
+        });
     }
 
     @Override
@@ -268,12 +279,16 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
     }
 
     private void maybeSendPublishRequests() {
+        long maxPendingPublishes = getMaxPendingPublishes();
+
+        if (maxPendingPublishes == 0) return;
+
         client.getSession().thenAccept(session -> {
             AtomicLong pendingCount = pendingCountMap.computeIfAbsent(
                     session.getSessionId(), id -> new AtomicLong(0L));
 
-            for (long i = pendingCount.get(); i < getMaxPendingPublishes(); i++) {
-                if (pendingCount.incrementAndGet() <= getMaxPendingPublishes()) {
+            for (long i = pendingCount.get(); i < maxPendingPublishes; i++) {
+                if (pendingCount.incrementAndGet() <= maxPendingPublishes) {
                     sendPublishRequest(session, pendingCount);
                 } else {
                     pendingCount.getAndUpdate(p -> (p > 0) ? p - 1 : 0);
@@ -315,7 +330,16 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                 subscriptionAcknowledgements
         );
 
-        logger.debug("Sending PublishRequest, requestHandle={}", requestHandle);
+        if (logger.isDebugEnabled()) {
+            String[] ackStrings = Arrays.stream(subscriptionAcknowledgements)
+                .map(ack -> String.format("id=%s/seq=%s",
+                    ack.getSubscriptionId(), ack.getSequenceNumber()))
+                .toArray(String[]::new);
+
+            logger.debug(
+                "Sending PublishRequest, requestHandle={}, acknowledgements={}",
+                requestHandle, Arrays.toString(ackStrings));
+        }
 
         client.<PublishResponse>sendRequest(request).whenCompleteAsync((response, ex) -> {
 
@@ -339,8 +363,8 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
                     maybeSendPublishRequests();
                 }
 
-                synchronized (acknowledgements) {
-                    Collections.addAll(acknowledgements, subscriptionAcknowledgements);
+                synchronized (this.acknowledgements) {
+                    Collections.addAll(this.acknowledgements, subscriptionAcknowledgements);
                 }
 
                 UaException uax = UaException.extract(ex).orElse(new UaException(ex));
@@ -393,6 +417,16 @@ public class OpcUaSubscriptionManager implements UaSubscriptionManager {
         synchronized (acknowledgements) {
             for (UInteger available : response.getAvailableSequenceNumbers()) {
                 acknowledgements.add(new SubscriptionAcknowledgement(subscriptionId, available));
+            }
+
+            if (logger.isDebugEnabled()) {
+                String[] seqStrings = Arrays.stream(response.getAvailableSequenceNumbers())
+                    .map(sequence -> String.format("id=%s/seq=%s", subscriptionId, sequence))
+                    .toArray(String[]::new);
+
+                logger.debug(
+                    "[id={}] PublishResponse sequence={}, available sequences={}",
+                    subscriptionId, sequenceNumber, Arrays.toString(seqStrings));
             }
         }
 

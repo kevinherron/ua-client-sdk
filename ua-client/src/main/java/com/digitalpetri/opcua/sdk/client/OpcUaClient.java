@@ -28,9 +28,6 @@ import com.digitalpetri.opcua.sdk.client.api.UaSession;
 import com.digitalpetri.opcua.sdk.client.api.config.OpcUaClientConfig;
 import com.digitalpetri.opcua.sdk.client.api.nodes.AddressSpace;
 import com.digitalpetri.opcua.sdk.client.api.nodes.NodeCache;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateEvent;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm;
-import com.digitalpetri.opcua.sdk.client.fsm.SessionStateFsm.SessionStateListener;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultAddressSpace;
 import com.digitalpetri.opcua.sdk.client.nodes.DefaultNodeCache;
 import com.digitalpetri.opcua.sdk.client.subscriptions.OpcUaSubscriptionManager;
@@ -127,14 +124,14 @@ public class OpcUaClient implements UaClient {
     private final OpcUaSubscriptionManager subscriptionManager;
 
     private final UaTcpStackClient stackClient;
-    private final SessionStateFsm fsm;
+    private final ClientSessionManager sessionManager;
 
     private final OpcUaClientConfig config;
 
     public OpcUaClient(OpcUaClientConfig config) {
         this.config = config;
 
-        fsm = new SessionStateFsm(this);
+        sessionManager = new ClientSessionManager(this);
 
         stackClient = new UaTcpStackClient(config);
 
@@ -204,9 +201,16 @@ public class OpcUaClient implements UaClient {
 
     @Override
     public CompletableFuture<UaClient> disconnect() {
-        return fsm.handleEvent(SessionStateEvent.DisconnectRequested)
-                .thenRun(subscriptionManager::clearSubscriptions)
-                .thenApply(vd -> OpcUaClient.this);
+        // Subscriptions must be cleared first, effectively stopping new
+        // PublishRequests from being sent, otherwise continued PublishRequests
+        // will initiate reconnection and re-activation.
+        subscriptionManager.clearSubscriptions();
+
+        return sessionManager
+            .closeSession()
+            .thenCompose(v -> stackClient.disconnect())
+            .thenApply(c -> (UaClient) OpcUaClient.this)
+            .exceptionally(ex -> OpcUaClient.this);
     }
 
     @Override
@@ -536,7 +540,7 @@ public class OpcUaClient implements UaClient {
 
     @Override
     public final CompletableFuture<UaSession> getSession() {
-        return fsm.getSession();
+        return sessionManager.getSession().thenApply(s -> (UaSession) s);
     }
 
     @Override
@@ -593,14 +597,14 @@ public class OpcUaClient implements UaClient {
         logger.debug("Removed ServiceFaultListener: {}", faultListener);
     }
 
-    public void addSessionStateListener(SessionStateListener listener) {
-        fsm.addListener(listener);
-        logger.debug("Added SessionStateListener: {}", listener);
+    public void addSessionActivityListener(SessionActivityListener listener) {
+        sessionManager.addListener(listener);
+        logger.debug("Added SessionActivityListener: {}", listener);
     }
 
-    public void removeSessionStateListener(SessionStateListener listener) {
-        fsm.removeListener(listener);
-        logger.debug("Removed SessionStateListener: {}", listener);
+    public void removeSessionActivityListener(SessionActivityListener listener) {
+        sessionManager.removeListener(listener);
+        logger.debug("Removed SessionActivityListener: {}", listener);
     }
 
 }

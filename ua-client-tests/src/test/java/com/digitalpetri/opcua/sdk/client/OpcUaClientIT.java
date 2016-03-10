@@ -61,85 +61,85 @@ public class OpcUaClientIT {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    OpcUaClient client;
-    OpcUaServer server;
+    private OpcUaClient client;
+    private OpcUaServer server;
 
     @BeforeTest
     public void startClientAndServer() throws Exception {
         logger.info("startClientAndServer()");
 
         UsernameIdentityValidator identityValidator = new UsernameIdentityValidator(
-                true, // allow anonymous access
-                challenge -> {
-                    String user0 = "user";
-                    String pass0 = "password";
+            true, // allow anonymous access
+            challenge -> {
+                String user0 = "user";
+                String pass0 = "password";
 
-                    char[] cs = new char[1000];
-                    Arrays.fill(cs, 'a');
-                    String user1 = new String(cs);
-                    String pass1 = new String(cs);
+                char[] cs = new char[1000];
+                Arrays.fill(cs, 'a');
+                String user1 = new String(cs);
+                String pass1 = new String(cs);
 
-                    boolean match0 = user0.equals(challenge.getUsername()) &&
-                            pass0.equals(challenge.getPassword());
+                boolean match0 = user0.equals(challenge.getUsername()) &&
+                    pass0.equals(challenge.getPassword());
 
-                    boolean match1 = user1.equals(challenge.getUsername()) &&
-                            pass1.equals(challenge.getPassword());
+                boolean match1 = user1.equals(challenge.getUsername()) &&
+                    pass1.equals(challenge.getPassword());
 
-                    return match0 || match1;
-                }
+                return match0 || match1;
+            }
         );
 
         List<UserTokenPolicy> userTokenPolicies = newArrayList(
-                OpcUaServerConfig.USER_TOKEN_POLICY_ANONYMOUS,
-                OpcUaServerConfig.USER_TOKEN_POLICY_USERNAME
+            OpcUaServerConfig.USER_TOKEN_POLICY_ANONYMOUS,
+            OpcUaServerConfig.USER_TOKEN_POLICY_USERNAME
         );
 
         KeyStoreLoader loader = new KeyStoreLoader().load();
 
         TestCertificateManager certificateManager = new TestCertificateManager(
-                loader.getServerKeyPair(),
-                loader.getServerCertificate()
+            loader.getServerKeyPair(),
+            loader.getServerCertificate()
         );
 
         TestCertificateValidator certificateValidator = new TestCertificateValidator(
-                loader.getClientCertificate()
+            loader.getClientCertificate()
         );
 
         OpcUaServerConfig serverConfig = OpcUaServerConfig.builder()
-                .setApplicationName(LocalizedText.english("digitalpetri opc-ua server"))
-                .setApplicationUri("urn:digitalpetri:opcua:server")
-                .setBindAddresses(newArrayList("localhost"))
-                .setBindPort(12686)
-                .setCertificateManager(certificateManager)
-                .setCertificateValidator(certificateValidator)
-                .setSecurityPolicies(EnumSet.of(SecurityPolicy.None, SecurityPolicy.Basic128Rsa15))
-                .setProductUri("urn:digitalpetri:opcua:sdk")
-                .setServerName("test-server")
-                .setUserTokenPolicies(userTokenPolicies)
-                .setIdentityValidator(identityValidator)
-                .build();
+            .setApplicationName(LocalizedText.english("digitalpetri opc-ua server"))
+            .setApplicationUri("urn:digitalpetri:opcua:server")
+            .setBindAddresses(newArrayList("localhost"))
+            .setBindPort(12686)
+            .setCertificateManager(certificateManager)
+            .setCertificateValidator(certificateValidator)
+            .setSecurityPolicies(EnumSet.of(SecurityPolicy.None, SecurityPolicy.Basic128Rsa15))
+            .setProductUri("urn:digitalpetri:opcua:sdk")
+            .setServerName("test-server")
+            .setUserTokenPolicies(userTokenPolicies)
+            .setIdentityValidator(identityValidator)
+            .build();
 
         server = new OpcUaServer(serverConfig);
 
         // register a CttNamespace so we have some nodes to play with
         server.getNamespaceManager().registerAndAdd(
-                CttNamespace.NAMESPACE_URI,
-                idx -> new CttNamespace(server, idx));
+            CttNamespace.NAMESPACE_URI,
+            idx -> new CttNamespace(server, idx));
 
         server.startup();
 
         EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
 
         EndpointDescription endpoint = Arrays.stream(endpoints)
-                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
-                .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+            .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+            .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
 
         OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
-                .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
-                .setApplicationUri("urn:digitalpetri:opcua:client")
-                .setEndpoint(endpoint)
-                .setRequestTimeout(uint(60000))
-                .build();
+            .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
+            .setApplicationUri("urn:digitalpetri:opcua:client")
+            .setEndpoint(endpoint)
+            .setRequestTimeout(uint(60000))
+            .build();
 
         client = new OpcUaClient(clientConfig);
     }
@@ -162,7 +162,7 @@ public class OpcUaClientIT {
         logger.info("testRead()");
 
         UaVariableNode currentTimeNode = client.getAddressSpace()
-                .getVariableNode(Identifiers.Server_ServerStatus_CurrentTime);
+            .getVariableNode(Identifiers.Server_ServerStatus_CurrentTime);
 
         assertNotNull(currentTimeNode.readValueAttribute().get());
     }
@@ -199,21 +199,21 @@ public class OpcUaClientIT {
         UaSubscription subscription = client.getSubscriptionManager().createSubscription(1000.0).get();
 
         ReadValueId readValueId = new ReadValueId(
-                Identifiers.Server_ServerStatus_CurrentTime,
-                AttributeId.Value.uid(), null, QualifiedName.NULL_VALUE);
+            Identifiers.Server_ServerStatus_CurrentTime,
+            AttributeId.Value.uid(), null, QualifiedName.NULL_VALUE);
 
         MonitoringParameters parameters = new MonitoringParameters(
-                uint(1),    // client handle
-                1000.0,     // sampling interval
-                null,       // no (default) filter
-                uint(10),   // queue size
-                true);      // discard oldest
+            uint(1),    // client handle
+            1000.0,     // sampling interval
+            null,       // no (default) filter
+            uint(10),   // queue size
+            true);      // discard oldest
 
         MonitoredItemCreateRequest request = new MonitoredItemCreateRequest(
-                readValueId, MonitoringMode.Reporting, parameters);
+            readValueId, MonitoringMode.Reporting, parameters);
 
         List<UaMonitoredItem> items = subscription
-                .createMonitoredItems(TimestampsToReturn.Both, newArrayList(request)).get();
+            .createMonitoredItems(TimestampsToReturn.Both, newArrayList(request)).get();
 
         // do something with the value updates
         UaMonitoredItem item = items.get(0);
@@ -224,7 +224,7 @@ public class OpcUaClientIT {
         assertNotNull(f.get(5, TimeUnit.SECONDS));
     }
 
-    @Test(enabled = false)
+    @Test
     public void testTransferSubscriptions() throws Exception {
         logger.info("testTransferSubscriptions()");
 
@@ -234,21 +234,21 @@ public class OpcUaClientIT {
         NodeId nodeId = new NodeId(2, "/Static/AllProfiles/Scalar/Int32");
 
         ReadValueId readValueId = new ReadValueId(
-                nodeId, AttributeId.Value.uid(),
-                null, QualifiedName.NULL_VALUE);
+            nodeId, AttributeId.Value.uid(),
+            null, QualifiedName.NULL_VALUE);
 
         MonitoringParameters parameters = new MonitoringParameters(
-                uint(1),    // client handle
-                100.0,      // sampling interval
-                null,       // no (default) filter
-                uint(10),   // queue size
-                true);      // discard oldest
+            uint(1),    // client handle
+            100.0,      // sampling interval
+            null,       // no (default) filter
+            uint(10),   // queue size
+            true);      // discard oldest
 
         MonitoredItemCreateRequest request = new MonitoredItemCreateRequest(
-                readValueId, MonitoringMode.Reporting, parameters);
+            readValueId, MonitoringMode.Reporting, parameters);
 
         List<UaMonitoredItem> items = subscription
-                .createMonitoredItems(TimestampsToReturn.Both, newArrayList(request)).get();
+            .createMonitoredItems(TimestampsToReturn.Both, newArrayList(request)).get();
 
         // do something with the value updates
         UaMonitoredItem item = items.get(0);
@@ -289,36 +289,42 @@ public class OpcUaClientIT {
             }
         });
 
+        logger.info("killing the session...");
         UaSession uaSession = client.getSession().get();
         server.getSessionManager().killSession(uaSession.getSessionId(), false);
 
-        Thread.sleep(2000);
+        logger.info("sleeping while waiting for an update");
+        Thread.sleep(5000);
 
         // one update for the initial subscribe, another after transfer
         assertEquals(updateCount.get(), 2);
 
         assertTrue(subscriptionTransferred.get());
+
+        client.disconnect().get();
     }
 
     @Test
     public void testUsernamePassword() throws Exception {
+        logger.info("testUsernamePassword()");
+
         EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
 
         EndpointDescription endpoint = Arrays.stream(endpoints)
-                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
-                .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+            .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+            .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
 
         KeyStoreLoader loader = new KeyStoreLoader().load();
 
         OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
-                .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
-                .setApplicationUri("urn:digitalpetri:opcua:client")
-                .setCertificate(loader.getClientCertificate())
-                .setKeyPair(loader.getClientKeyPair())
-                .setEndpoint(endpoint)
-                .setRequestTimeout(uint(60000))
-                .setIdentityProvider(new UsernameProvider("user", "password"))
-                .build();
+            .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
+            .setApplicationUri("urn:digitalpetri:opcua:client")
+            .setCertificate(loader.getClientCertificate())
+            .setKeyPair(loader.getClientKeyPair())
+            .setEndpoint(endpoint)
+            .setRequestTimeout(uint(60000))
+            .setIdentityProvider(new UsernameProvider("user", "password"))
+            .build();
 
         OpcUaClient client = new OpcUaClient(clientConfig);
 
@@ -332,11 +338,13 @@ public class OpcUaClientIT {
      */
     @Test
     public void testUsernamePassword_MultiBlock() throws Exception {
+        logger.info("testUsernamePassword_MultiBlock()");
+
         EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
 
         EndpointDescription endpoint = Arrays.stream(endpoints)
-                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
-                .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+            .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+            .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
 
         char[] cs = new char[1000];
         Arrays.fill(cs, 'a');
@@ -344,12 +352,12 @@ public class OpcUaClientIT {
         String pass = new String(cs);
 
         OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
-                .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
-                .setApplicationUri("urn:digitalpetri:opcua:client")
-                .setEndpoint(endpoint)
-                .setRequestTimeout(uint(60000))
-                .setIdentityProvider(new UsernameProvider(user, pass))
-                .build();
+            .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
+            .setApplicationUri("urn:digitalpetri:opcua:client")
+            .setEndpoint(endpoint)
+            .setRequestTimeout(uint(60000))
+            .setIdentityProvider(new UsernameProvider(user, pass))
+            .build();
 
         OpcUaClient client = new OpcUaClient(clientConfig);
 
@@ -358,31 +366,33 @@ public class OpcUaClientIT {
 
     @Test
     public void testConnectAndDisconnect() throws Exception {
+        logger.info("testConnectAndDisconnect()");
+
         EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
 
         EndpointDescription endpoint = Arrays.stream(endpoints)
-                .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
-                .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+            .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+            .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
 
         class ConnectDisconnect implements Runnable {
             private final int threadNumber;
 
-            public ConnectDisconnect(int threadNumber) {
+            private ConnectDisconnect(int threadNumber) {
                 this.threadNumber = threadNumber;
             }
 
-            OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
+            private OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
                     .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
                     .setApplicationUri("urn:digitalpetri:opcua:client")
                     .setEndpoint(endpoint)
-                    .setRequestTimeout(uint(60000))
+                    .setRequestTimeout(uint(10000))
                     .build();
 
-            OpcUaClient client = new OpcUaClient(clientConfig);
+            private OpcUaClient client = new OpcUaClient(clientConfig);
 
             @Override
             public void run() {
-                for (int i = 0; i < 1000; i++) {
+                for (int i = 0; i < 100; i++) {
                     try {
                         client.connect().get();
 
@@ -393,8 +403,10 @@ public class OpcUaClientIT {
                         ).get();
 
                         client.disconnect().get();
+
+                        Thread.sleep(10);
                     } catch (InterruptedException | ExecutionException e) {
-                        fail();
+                        fail(e.getMessage(), e);
                     }
                 }
                 logger.info("Thread {} done.", threadNumber);
@@ -414,32 +426,56 @@ public class OpcUaClientIT {
     }
 
     @Test
-    public void testReactivate() throws ExecutionException, InterruptedException {
+    public void testReactivate() throws Exception {
         logger.info("testReactivate()");
 
+        EndpointDescription[] endpoints = UaTcpStackClient.getEndpoints("opc.tcp://localhost:12686/test-server").get();
+
+        EndpointDescription endpoint = Arrays.stream(endpoints)
+            .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getSecurityPolicyUri()))
+            .findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+
+        OpcUaClientConfig clientConfig = OpcUaClientConfig.builder()
+            .setApplicationName(LocalizedText.english("digitalpetri opc-ua client"))
+            .setApplicationUri("urn:digitalpetri:opcua:client")
+            .setEndpoint(endpoint)
+            .setRequestTimeout(uint(10000))
+            .build();
+
+        OpcUaClient client = new OpcUaClient(clientConfig);
+
         UaVariableNode currentTimeNode = client.getAddressSpace()
-                .getVariableNode(Identifiers.Server_ServerStatus_CurrentTime);
+            .getVariableNode(Identifiers.Server_ServerStatus_CurrentTime);
 
         assertNotNull(currentTimeNode.readValueAttribute().get());
 
         // Kill the session. Client can't and won't be notified of this.
+        logger.info("killing session...");
         UaSession session = client.getSession().get();
         server.getSessionManager().killSession(session.getSessionId(), true);
 
         // Expect the next action to fail because the session is no longer valid.
         try {
+            logger.info("reading, expecting failure...");
             currentTimeNode.readValueAttribute().get();
         } catch (Throwable t) {
             StatusCode statusCode = UaServiceFaultException.extract(t)
-                    .map(UaException::getStatusCode)
-                    .orElse(StatusCode.BAD);
+                .map(UaException::getStatusCode)
+                .orElse(StatusCode.BAD);
 
             assertEquals(statusCode.getValue(), StatusCodes.Bad_SessionIdInvalid);
         }
 
+        Thread.sleep(1000);
+
         // Force a reactivate and read.
+        logger.info("reconnecting...");
         client.connect().get();
+
+        logger.info("reading, expecting success...");
         assertNotNull(currentTimeNode.readValueAttribute().get());
+
+        client.disconnect().get();
     }
 
 }
