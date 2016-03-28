@@ -69,7 +69,7 @@ public interface UaNode {
      * @see #readNodeClass()
      */
     default CompletableFuture<NodeClass> readNodeClassAttribute() {
-        return readNodeClass().thenApply(v -> (NodeClass) v.getValue().getValue());
+        return readNodeClass().thenApply(v -> NodeClass.from((Integer) v.getValue().getValue()));
     }
 
     /**
