@@ -79,8 +79,8 @@ class ClientSessionManager {
             long status = statusCode.getValue();
 
             return status == StatusCodes.Bad_SecureChannelIdInvalid ||
-                status == StatusCodes.Bad_SecurityChecksFailed ||
-                status == StatusCodes.Bad_TcpSecureChannelUnknown;
+                    status == StatusCodes.Bad_SecurityChecksFailed ||
+                    status == StatusCodes.Bad_TcpSecureChannelUnknown;
         };
 
         client.addFaultListener(serviceFault -> {
