@@ -126,11 +126,17 @@ public class UsernameProvider implements IdentityProvider {
         byte[] bs = new byte[buffer.readableBytes()];
         buffer.readBytes(bs);
 
+        // UA Part 4, Section 7.35.3 UserNameIdentityToken:
+        // encryptionAlgorithm parameter is null if the password is not encrypted.
+        String securityAlgorithmUri = securityPolicy.getAsymmetricEncryptionAlgorithm().getUri();
+        String encryptionAlgorithm = securityAlgorithmUri.isEmpty() ? null : securityAlgorithmUri;
+
         UserNameIdentityToken token = new UserNameIdentityToken(
-                policyId,
-                username,
-                ByteString.of(bs),
-                securityPolicy.getAsymmetricEncryptionAlgorithm().getUri());
+            policyId,
+            username,
+            ByteString.of(bs),
+            encryptionAlgorithm
+        );
 
         return new Tuple2<>(token, new SignatureData());
     }
