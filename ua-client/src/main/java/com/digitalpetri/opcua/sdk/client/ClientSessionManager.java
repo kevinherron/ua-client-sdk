@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import static com.digitalpetri.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
 import static com.google.common.collect.Lists.newCopyOnWriteArrayList;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 class ClientSessionManager {
 
@@ -167,7 +168,7 @@ class ClientSessionManager {
             currentState.getClass().getSimpleName());
 
         if (currentState instanceof Inactive) {
-            return CompletableFuture.completedFuture(null);
+            return completedFuture(null);
         } else if (currentState instanceof Closing) {
             return ((Closing) currentState).closeFuture
                 .thenApply(s -> (Void) null)
@@ -559,7 +560,10 @@ class ClientSessionManager {
                     .map(UaException::getStatusCode)
                     .orElse(StatusCode.BAD);
 
-                if (statusCode.getValue() == StatusCodes.Bad_NotSupported ||
+                // Bad_ServiceUnsupported is the correct response when transfers aren't supported but
+                // server implementations tend to interpret the spec in their own unique way...
+                if (statusCode.getValue() == StatusCodes.Bad_NotImplemented ||
+                    statusCode.getValue() == StatusCodes.Bad_NotSupported ||
                     statusCode.getValue() == StatusCodes.Bad_OutOfService ||
                     statusCode.getValue() == StatusCodes.Bad_ServiceUnsupported) {
 
@@ -577,8 +581,14 @@ class ClientSessionManager {
                 } else {
                     logger.debug("TransferSubscriptions failed: {}", statusCode);
 
-                    state.compareAndSet(transferringState, new Inactive());
-                    sessionFuture.completeExceptionally(ex);
+                    Closing closing = new Closing();
+
+                    if (state.compareAndSet(transferringState, closing)) {
+                        closeSession(closing, completedFuture(session));
+
+                        closing.closeFuture.whenComplete((v, ex2) ->
+                            sessionFuture.completeExceptionally(ex));
+                    }
                 }
             }
         });
