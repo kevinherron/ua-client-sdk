@@ -39,6 +39,4 @@ Contact kevinherron@gmail.com for more information.
 License
 --------
 
-The digitalpetri OPC-UA Client SDK is licensed under the GNU Affero General Public License v3 (AGPL-3.0).
-
-Commercial-friendly licensing may be purchased.
+The digitalpetri OPC-UA Client SDK is licensed under Apache 2.
